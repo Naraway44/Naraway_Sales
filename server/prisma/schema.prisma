@@ -43,11 +43,11 @@ enum ActivityAction {
 model Team {
   id        String   @id @default(cuid())
   name      String   @unique
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   users           User[]
   assignmentRules AssignmentRule[]
-  lastAssignedIdx Int               @default(0) // round-robin cursor
+  lastAssignedIdx Int              @default(0) @map("last_assigned_idx") // round-robin cursor
 
   @@map("teams")
 }
@@ -55,7 +55,7 @@ model Team {
 model Service {
   id        String   @id @default(cuid())
   name      String   @unique
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   leads           Lead[]
   assignmentRules AssignmentRule[]
@@ -66,7 +66,7 @@ model Service {
 model LeadSource {
   id        String   @id @default(cuid())
   name      String   @unique
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   leads Lead[]
 
@@ -75,67 +75,67 @@ model LeadSource {
 
 model User {
   id                 String   @id @default(cuid())
-  employeeId         String   @unique
+  employeeId         String   @unique @map("employee_id")
   name               String
   email              String   @unique
-  passwordHash       String
+  passwordHash       String   @map("password_hash")
   role               Role
-  mustChangePassword Boolean  @default(true)
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  mustChangePassword Boolean  @default(true) @map("must_change_password")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-  teamId String?
+  teamId String? @map("team_id")
   team   Team?   @relation(fields: [teamId], references: [id])
 
-  ownedLeads    Lead[]         @relation("LeadOwner")
-  createdLeads  Lead[]         @relation("LeadCreatedBy")
-  activities    LeadActivity[]
-  comments      LeadComment[]
-  auditLogs     AuditLog[]
+  ownedLeads   Lead[]         @relation("LeadOwner")
+  createdLeads Lead[]         @relation("LeadCreatedBy")
+  activities   LeadActivity[]
+  comments     LeadComment[]
+  auditLogs    AuditLog[]
 
   @@index([teamId])
   @@map("users")
 }
 
 model Lead {
-  id          String   @id @default(cuid())
-  companyName String
-  contactPerson String
-  phone       String
-  email       String?
-  website     String?
-  industry    String?
-  city        String?
-  state       String?
-  country     String?
-  notes       String?
+  id            String  @id @default(cuid())
+  companyName   String  @map("company_name")
+  contactPerson String  @map("contact_person")
+  phone         String
+  email         String?
+  website       String?
+  industry      String?
+  city          String?
+  state         String?
+  country       String?
+  notes         String?
 
-  serviceId String?
+  serviceId String?  @map("service_id")
   service   Service? @relation(fields: [serviceId], references: [id])
 
-  sourceId String?
+  sourceId String?     @map("source_id")
   source   LeadSource? @relation(fields: [sourceId], references: [id])
 
-  ownerId String?
+  ownerId String? @map("owner_id")
   owner   User?   @relation("LeadOwner", fields: [ownerId], references: [id])
 
   priority Priority   @default(MEDIUM)
   status   LeadStatus @default(NEW)
 
-  expectedDealValue   Decimal? @db.Decimal(14, 2)
+  expectedDealValue   Decimal?  @map("expected_deal_value") @db.Decimal(14, 2)
   probability         Int?
-  expectedClosingDate DateTime?
-  lostReason          String?
+  expectedClosingDate DateTime? @map("expected_closing_date")
+  lostReason          String?   @map("lost_reason")
 
-  lastContactAt DateTime?
-  nextFollowUp  DateTime?
+  lastContactAt DateTime? @map("last_contact_at")
+  nextFollowUp  DateTime? @map("next_follow_up")
 
-  createdById String
+  createdById String @map("created_by_id")
   createdBy   User   @relation("LeadCreatedBy", fields: [createdById], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   activities LeadActivity[]
   comments   LeadComment[]
@@ -152,9 +152,9 @@ model Lead {
 
 model LeadActivity {
   id        String         @id @default(cuid())
-  leadId    String
+  leadId    String         @map("lead_id")
   lead      Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String?
+  userId    String?        @map("user_id")
   user      User?          @relation(fields: [userId], references: [id])
   action    ActivityAction
   notes     String?
@@ -166,12 +166,12 @@ model LeadActivity {
 
 model LeadComment {
   id        String   @id @default(cuid())
-  leadId    String
+  leadId    String   @map("lead_id")
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id])
   body      String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([leadId])
   @@map("lead_comments")
@@ -179,9 +179,9 @@ model LeadComment {
 
 model AssignmentRule {
   id        String  @id @default(cuid())
-  serviceId String  @unique
+  serviceId String  @unique @map("service_id")
   service   Service @relation(fields: [serviceId], references: [id])
-  teamId    String
+  teamId    String  @map("team_id")
   team      Team    @relation(fields: [teamId], references: [id])
 
   @@map("assignment_rules")
@@ -189,11 +189,11 @@ model AssignmentRule {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  actorId    String?
+  actorId    String?  @map("actor_id")
   actor      User?    @relation(fields: [actorId], references: [id])
   action     String
-  entityType String
-  entityId   String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
   timestamp  DateTime @default(now())
 
   @@map("audit_logs")
