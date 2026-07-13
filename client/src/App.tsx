@@ -13,6 +13,7 @@ import { NewLeadPage } from "@/pages/NewLead";
 import { UsersPage } from "@/pages/Users";
 import { MemberProfilePage } from "@/pages/MemberProfile";
 import { SettingsPage } from "@/pages/Settings";
+import { ResourcesPage } from "@/pages/Resources";
 import { ToastProvider } from "@/components/Toast";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/leads" element={<LeadsListPage />} />
                 <Route path="/leads/new" element={<NewLeadPage />} />
                 <Route path="/leads/:id" element={<LeadDetailPage />} />
+                <Route path="/resources" element={<ResourcesPage />} />
 
                 <Route element={<ProtectedRoute roles={["FOUNDER", "MANAGER"]} />}>
                   <Route path="/dashboard" element={<DashboardPage />} />

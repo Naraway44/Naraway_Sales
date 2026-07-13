@@ -49,6 +49,12 @@ enum CallOutcome {
   WRONG_NUMBER
 }
 
+enum ResourceCategory {
+  MESSAGE
+  EMAIL
+  CALL_SCRIPT
+}
+
 model Team {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -68,8 +74,31 @@ model Service {
 
   leads           Lead[]
   assignmentRules AssignmentRule[]
+  resources       Resource[]
 
   @@map("services")
+}
+
+// Message/email templates the team can copy and send to clients for a given service —
+// e.g. an outreach draft for "AI Development" leads. Founder/Manager write these,
+// everyone can view and copy them. Not tied to leads/comments — this is a shared library,
+// not per-lead history.
+model Resource {
+  id        String           @id @default(cuid())
+  title     String
+  body      String
+  category  ResourceCategory
+  serviceId String?          @map("service_id")
+  service   Service?         @relation(fields: [serviceId], references: [id])
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("ResourceCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category, serviceId])
+  @@map("resources")
 }
 
 model LeadSource {
@@ -99,13 +128,14 @@ model User {
   teamId String? @map("team_id")
   team   Team?   @relation(fields: [teamId], references: [id])
 
-  ownedLeads   Lead[]         @relation("LeadOwner")
-  createdLeads Lead[]         @relation("LeadCreatedBy")
-  activities   LeadActivity[]
-  auditLogs    AuditLog[]
-  sessions     UserSession[]
-  leadViews    LeadView[]
-  idleFlags    IdleFlag[]
+  ownedLeads       Lead[]         @relation("LeadOwner")
+  createdLeads     Lead[]         @relation("LeadCreatedBy")
+  activities       LeadActivity[]
+  auditLogs        AuditLog[]
+  sessions         UserSession[]
+  leadViews        LeadView[]
+  idleFlags        IdleFlag[]
+  createdResources Resource[]     @relation("ResourceCreatedBy")
 
   // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
   // shape of the round-robin assignment query (team + role + active), so one index

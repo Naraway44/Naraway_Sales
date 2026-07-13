@@ -223,3 +223,21 @@ create index if not exists lead_activities_user_id_timestamp_idx on lead_activit
 -- drop below is only needed against a database created before this date.
 alter table leads add column if not exists comments jsonb not null default '[]'::jsonb;
 drop table if exists lead_comments;
+
+-- 2026-07-14: Resources — shared message/email/call-script templates for the team,
+-- optionally scoped to a service. Founder/Manager write these, everyone can view/copy.
+do $$ begin
+  create type "ResourceCategory" as enum ('MESSAGE', 'EMAIL', 'CALL_SCRIPT');
+exception when duplicate_object then null; end $$;
+
+create table if not exists resources (
+  id text primary key default gen_random_uuid()::text,
+  title text not null,
+  body text not null,
+  category "ResourceCategory" not null,
+  service_id text references services(id),
+  created_by_id text references users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists resources_category_service_id_idx on resources(category, service_id);

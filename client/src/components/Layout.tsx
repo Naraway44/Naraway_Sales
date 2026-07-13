@@ -12,6 +12,7 @@ export function Layout() {
     { to: "/dashboard", label: "Dashboard", roles: ["FOUNDER", "MANAGER"] },
     { to: "/my-dashboard", label: "My Dashboard", roles: ["EXECUTIVE"] },
     { to: "/leads", label: "Leads", roles: ["FOUNDER", "MANAGER", "EXECUTIVE"] },
+    { to: "/resources", label: "Resources", roles: ["FOUNDER", "MANAGER", "EXECUTIVE"] },
     { to: "/users", label: "Team", roles: ["FOUNDER", "MANAGER"] },
     { to: "/settings", label: "Settings", roles: ["FOUNDER"] },
   ];
