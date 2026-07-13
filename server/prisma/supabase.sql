@@ -74,7 +74,7 @@ create table if not exists users (
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now()
 );
-create index if not exists users_team_id_idx on users(team_id);
+create index if not exists users_team_id_role_is_active_idx on users(team_id, role, is_active);
 
 -- ---------- leads ----------
 create table if not exists leads (
@@ -104,8 +104,8 @@ create table if not exists leads (
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
-create index if not exists leads_owner_id_idx on leads(owner_id);
-create index if not exists leads_status_idx on leads(status);
+create index if not exists leads_owner_id_status_updated_at_idx on leads(owner_id, status, updated_at);
+create index if not exists leads_status_updated_at_idx on leads(status, updated_at);
 create index if not exists leads_service_id_idx on leads(service_id);
 create index if not exists leads_phone_idx on leads(phone);
 create index if not exists leads_email_idx on leads(email);
@@ -122,6 +122,7 @@ create table if not exists lead_activities (
   timestamp timestamptz not null default now()
 );
 create index if not exists lead_activities_lead_id_idx on lead_activities(lead_id);
+create index if not exists lead_activities_user_id_timestamp_idx on lead_activities(user_id, timestamp);
 
 -- ---------- lead_comments ----------
 create table if not exists lead_comments (
@@ -195,3 +196,13 @@ create table if not exists lead_views (
   unique (lead_id, user_id, view_date)
 );
 create index if not exists lead_views_user_id_idx on lead_views(user_id);
+
+-- 2026-07-14: index cleanup — composite indexes replace overlapping single-column ones
+-- (Postgres can use a leftmost prefix of a composite index, so one covers what three did).
+-- The table definitions above already reflect the final state for a fresh install; these
+-- drops are only needed if you're re-running this file against a database created before
+-- this date.
+drop index if exists users_team_id_idx;
+drop index if exists leads_owner_id_idx;
+drop index if exists leads_status_idx;
+create index if not exists lead_activities_user_id_timestamp_idx on lead_activities(user_id, timestamp);

@@ -107,7 +107,10 @@ model User {
   sessions     UserSession[]
   leadViews    LeadView[]
 
-  @@index([teamId])
+  // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
+  // shape of the round-robin assignment query (team + role + active), so one index
+  // serves both instead of carrying a redundant single-column one alongside it.
+  @@index([teamId, role, isActive])
   @@map("users")
 }
 
@@ -170,8 +173,13 @@ model Lead {
   comments   LeadComment[]
   views      LeadView[]
 
-  @@index([ownerId])
-  @@index([status])
+  // Covers plain ownerId lookups, "my leads by status", and the neglected-leads query
+  // (ownerId + status + stale updatedAt) via leftmost-prefix matching — one index instead
+  // of three overlapping ones.
+  @@index([ownerId, status, updatedAt])
+  // Same idea for org-wide (Founder/Manager) views: plain status filtering, and future
+  // "all neglected leads company-wide" queries.
+  @@index([status, updatedAt])
   @@index([serviceId])
   @@index([phone])
   @@index([email])
@@ -191,6 +199,10 @@ model LeadActivity {
   timestamp DateTime       @default(now())
 
   @@index([leadId])
+  // Powers the Member Profile page: "this person's recent activity" and "this person's
+  // calls" both filter by userId and sort by timestamp. Previously unindexed on userId
+  // at all, which would have meant a full table scan per profile view at scale.
+  @@index([userId, timestamp])
   @@map("lead_activities")
 }
 
