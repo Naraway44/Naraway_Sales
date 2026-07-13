@@ -84,9 +84,9 @@ export interface LeadActivity {
 
 export interface LeadComment {
   id: string;
-  leadId: string;
-  userId: string | null;
-  user: { id: string; name: string; employeeId: string } | null;
+  userId: string;
+  userName: string;
+  employeeId: string;
   body: string;
   createdAt: string;
 }

@@ -88,6 +88,8 @@ export class UsersService {
    * row is gone from the database entirely (not just deactivated). Leads they owned are
    * unassigned; leads/comments/activity they created are kept for history but show as
    * created by "Deleted user" rather than being destroyed or blocked by foreign keys.
+   * (Comments need no such handling — they're a jsonb snapshot of the author's name at
+   * post time, not a live foreign key, so deleting the account doesn't touch them.)
    * Founders can delete anyone; Managers can only delete Executives (not other
    * Managers/Founders), to prevent a Manager from removing peers or admins.
    */
@@ -102,7 +104,6 @@ export class UsersService {
       prisma.lead.updateMany({ where: { ownerId: id }, data: { ownerId: null } }),
       prisma.lead.updateMany({ where: { createdById: id }, data: { createdById: null } }),
       prisma.leadActivity.updateMany({ where: { userId: id }, data: { userId: null } }),
-      prisma.leadComment.updateMany({ where: { userId: id }, data: { userId: null } }),
       prisma.auditLog.updateMany({ where: { actorId: id }, data: { actorId: null } }),
       prisma.user.delete({ where: { id } }),
     ]);

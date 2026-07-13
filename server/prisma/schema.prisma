@@ -102,10 +102,10 @@ model User {
   ownedLeads   Lead[]         @relation("LeadOwner")
   createdLeads Lead[]         @relation("LeadCreatedBy")
   activities   LeadActivity[]
-  comments     LeadComment[]
   auditLogs    AuditLog[]
   sessions     UserSession[]
   leadViews    LeadView[]
+  idleFlags    IdleFlag[]
 
   // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
   // shape of the round-robin assignment query (team + role + active), so one index
@@ -125,8 +125,35 @@ model UserSession {
   loginAt  DateTime  @default(now()) @map("login_at")
   logoutAt DateTime? @map("logout_at")
 
+  // Real activity within this session, distinct from raw login-to-logout duration.
+  // The client only sends a heartbeat when there's been mouse/keyboard/scroll activity
+  // since the last one, so a gap here (heartbeat stops arriving) means the person is
+  // away from the screen even though the session is technically still open.
+  activeSeconds   Int       @default(0) @map("active_seconds")
+  lastHeartbeatAt DateTime? @map("last_heartbeat_at")
+
+  idleFlags IdleFlag[]
+
   @@index([userId])
   @@map("user_sessions")
+}
+
+// A discrete "away from screen 30+ minutes while still logged in" incident — recorded
+// once per gap (not just folded into a number) so it shows up on that day's profile as
+// something a manager can actually look at and raise in a 1:1, not just a stat.
+model IdleFlag {
+  id              String      @id @default(cuid())
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String      @map("session_id")
+  session         UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  flagDate        DateTime    @map("flag_date") @db.Date
+  startedAt       DateTime    @map("started_at")
+  endedAt         DateTime    @map("ended_at")
+  durationMinutes Int         @map("duration_minutes")
+
+  @@index([userId, flagDate])
+  @@map("idle_flags")
 }
 
 model Lead {
@@ -170,7 +197,12 @@ model Lead {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   activities LeadActivity[]
-  comments   LeadComment[]
+  // Team comments live here as a jsonb array (each entry: {id, userId, userName,
+  // employeeId, body, createdAt}), appended atomically via a raw jsonb || update rather
+  // than a separate table — there's no cross-lead comment query, so one row per lead
+  // read/written together beats a join for this. Author name/ID is snapshotted at post
+  // time, so a comment still shows who wrote it even if that account is later deleted.
+  comments   Json           @default("[]") @map("comments")
   views      LeadView[]
 
   // Covers plain ownerId lookups, "my leads by status", and the neglected-leads query
@@ -204,19 +236,6 @@ model LeadActivity {
   // at all, which would have meant a full table scan per profile view at scale.
   @@index([userId, timestamp])
   @@map("lead_activities")
-}
-
-model LeadComment {
-  id        String   @id @default(cuid())
-  leadId    String   @map("lead_id")
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String?  @map("user_id")
-  user      User?    @relation(fields: [userId], references: [id])
-  body      String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([leadId])
-  @@map("lead_comments")
 }
 
 // One row per (lead, user, day) — "did this rep open this lead today", deduped so normal

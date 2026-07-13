@@ -25,3 +25,7 @@ export async function fetchMe() {
 export async function logout() {
   await api.post("/auth/logout");
 }
+
+export async function sendHeartbeat() {
+  await api.post("/auth/heartbeat");
+}

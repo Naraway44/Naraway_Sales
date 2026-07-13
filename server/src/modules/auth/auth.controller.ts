@@ -39,6 +39,15 @@ authRouter.post(
   })
 );
 
+authRouter.post(
+  "/heartbeat",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const result = await authService.heartbeat(req.user!.id, req.user!.sessionId);
+    res.json(result);
+  })
+);
+
 authRouter.get(
   "/me",
   requireAuth,

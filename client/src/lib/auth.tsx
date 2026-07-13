@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { fetchMe, logout as logoutRequest } from "@/api/auth";
+import { fetchMe, logout as logoutRequest, sendHeartbeat } from "@/api/auth";
 import { User } from "@/api/types";
 
 interface AuthContextValue {
@@ -11,9 +11,45 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Matches the server's HEARTBEAT_ACTIVE_GAP_SECONDS tolerance — a heartbeat this often,
+// but only when there's been real activity, is what lets the server tell "actively
+// working" apart from "logged in with the tab open."
+const HEARTBEAT_INTERVAL_MS = 60_000;
+const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"] as const;
+
+/** Sends a heartbeat only when there's been real mouse/keyboard/scroll activity since the
+ *  last one and the tab is actually visible — a background/inactive tab won't fake "active". */
+function useActivityHeartbeat(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+
+    let hasActivity = true; // send one heartbeat promptly on mount/login
+    const markActive = () => {
+      hasActivity = true;
+    };
+    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, markActive, { passive: true }));
+
+    const interval = setInterval(() => {
+      if (hasActivity && document.visibilityState === "visible") {
+        sendHeartbeat().catch(() => {
+          // Best-effort — a missed heartbeat just shows up as an idle gap, which is correct.
+        });
+        hasActivity = false;
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, markActive));
+      clearInterval(interval);
+    };
+  }, [enabled]);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useActivityHeartbeat(!!user);
 
   useEffect(() => {
     const token = localStorage.getItem("token");

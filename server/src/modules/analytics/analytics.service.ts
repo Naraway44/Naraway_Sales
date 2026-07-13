@@ -32,21 +32,7 @@ function dateKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-/**
- * Rolls up raw login/logout sessions into day/week/month/year active-minutes totals, plus
- * a recent session list. Each session's full duration is attributed to its login day
- * (sessions essentially never span midnight given the 8h cap, so this is exact in practice).
- */
-function summarizeSessions(sessions: { loginAt: Date; logoutAt: Date | null }[], now: Date) {
-  const byDate = new Map<string, number>();
-
-  for (const s of sessions) {
-    const end = s.logoutAt ?? new Date(Math.min(now.getTime(), s.loginAt.getTime() + ASSUMED_SESSION_MAX_HOURS * 3600_000));
-    const minutes = Math.max(0, (end.getTime() - s.loginAt.getTime()) / 60_000);
-    const key = dateKey(s.loginAt);
-    byDate.set(key, (byDate.get(key) ?? 0) + minutes);
-  }
-
+function bucketTotals(byDate: Map<string, number>, now: Date) {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dayOfWeek = (startOfToday.getDay() + 6) % 7; // Monday = 0
   const startOfWeek = new Date(startOfToday.getTime() - dayOfWeek * 86_400_000);
@@ -72,6 +58,35 @@ function summarizeSessions(sessions: { loginAt: Date; logoutAt: Date | null }[],
     thisWeekMinutes: Math.round(thisWeek),
     thisMonthMinutes: Math.round(thisMonth),
     thisYearMinutes: Math.round(thisYear),
+  };
+}
+
+/**
+ * Rolls up raw login/logout sessions into day/week/month/year totals for TWO separate
+ * numbers: how long they were logged in, and how long they were actually active (real
+ * mouse/keyboard/scroll heartbeats). The gap between these two is the "logged in but not
+ * working" signal — presence alone is easy to fake (mouse jigglers exist), so this is
+ * reported as a supporting number next to output metrics (calls, leads touched), never
+ * as the accountability measure on its own.
+ */
+function summarizeSessions(
+  sessions: { loginAt: Date; logoutAt: Date | null; activeSeconds: number }[],
+  now: Date
+) {
+  const loggedInByDate = new Map<string, number>();
+  const activeByDate = new Map<string, number>();
+
+  for (const s of sessions) {
+    const end = s.logoutAt ?? new Date(Math.min(now.getTime(), s.loginAt.getTime() + ASSUMED_SESSION_MAX_HOURS * 3600_000));
+    const loggedInMinutes = Math.max(0, (end.getTime() - s.loginAt.getTime()) / 60_000);
+    const key = dateKey(s.loginAt);
+    loggedInByDate.set(key, (loggedInByDate.get(key) ?? 0) + loggedInMinutes);
+    activeByDate.set(key, (activeByDate.get(key) ?? 0) + s.activeSeconds / 60);
+  }
+
+  return {
+    loggedIn: bucketTotals(loggedInByDate, now),
+    active: bucketTotals(activeByDate, now),
   };
 }
 
@@ -175,6 +190,7 @@ export class AnalyticsService {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    const sessionWindowStart = new Date(now.getFullYear() - 1, 0, 1);
 
     const [
       assigned,
@@ -185,6 +201,10 @@ export class AnalyticsService {
       overdueFollowUps,
       todayFollowUps,
       upcomingFollowUps,
+      sessions,
+      todayIdleFlags,
+      todayCalls,
+      todayViews,
     ] = await Promise.all([
       prisma.lead.count({ where: { ownerId: userId } }),
       prisma.lead.count({ where: { ownerId: userId, status: { in: CONTACTED_STATUSES } } }),
@@ -196,6 +216,16 @@ export class AnalyticsService {
         where: { ownerId: userId, nextFollowUp: { gte: startOfToday, lt: startOfTomorrow } },
       }),
       prisma.lead.count({ where: { ownerId: userId, nextFollowUp: { gte: startOfTomorrow } } }),
+      prisma.userSession.findMany({
+        where: { userId, loginAt: { gte: sessionWindowStart } },
+        orderBy: { loginAt: "desc" },
+        select: { loginAt: true, logoutAt: true, activeSeconds: true },
+      }),
+      prisma.idleFlag.findMany({ where: { userId, flagDate: startOfToday }, orderBy: { startedAt: "desc" } }),
+      prisma.leadActivity.count({
+        where: { userId, action: "CALLED", timestamp: { gte: startOfToday } },
+      }),
+      prisma.leadView.count({ where: { userId, viewDate: startOfToday } }),
     ]);
 
     const byStatus = Object.fromEntries(statusGroups.map((g) => [g.status, g._count._all])) as Record<
@@ -215,6 +245,18 @@ export class AnalyticsService {
         overdue: overdueFollowUps,
         today: todayFollowUps,
         upcoming: upcomingFollowUps,
+      },
+      // Same activity data shown to Founder/Manager on this person's Member Profile —
+      // visible to the person themselves too, so it's a shared record, not a one-sided one.
+      sessions: summarizeSessions(sessions, now),
+      today: {
+        callsLogged: todayCalls,
+        leadsViewed: todayViews,
+        idleFlags: todayIdleFlags.map((f) => ({
+          startedAt: f.startedAt,
+          endedAt: f.endedAt,
+          durationMinutes: f.durationMinutes,
+        })),
       },
     };
   }
@@ -280,6 +322,7 @@ export class AnalyticsService {
       viewedLeads,
       sessions,
       recentActivity,
+      idleFlags,
     ] = await Promise.all([
       prisma.lead.count({ where: { ownerId: userId } }),
       prisma.lead.count({ where: { ownerId: userId, status: { in: CONTACTED_STATUSES } } }),
@@ -293,13 +336,18 @@ export class AnalyticsService {
       prisma.userSession.findMany({
         where: { userId, loginAt: { gte: sessionWindowStart } },
         orderBy: { loginAt: "desc" },
-        select: { loginAt: true, logoutAt: true },
+        select: { loginAt: true, logoutAt: true, activeSeconds: true },
       }),
       prisma.leadActivity.findMany({
         where: { userId },
         orderBy: { timestamp: "desc" },
         take: 20,
         include: { lead: { select: { id: true, companyName: true } } },
+      }),
+      prisma.idleFlag.findMany({
+        where: { userId },
+        orderBy: { startedAt: "desc" },
+        take: 20,
       }),
     ]);
 
@@ -313,7 +361,8 @@ export class AnalyticsService {
     const recentSessions = sessions.slice(0, 15).map((s) => ({
       loginAt: s.loginAt,
       logoutAt: s.logoutAt,
-      durationMinutes: Math.round(
+      activeMinutes: Math.round(s.activeSeconds / 60),
+      loggedInMinutes: Math.round(
         ((s.logoutAt ?? new Date(Math.min(now.getTime(), s.loginAt.getTime() + ASSUMED_SESSION_MAX_HOURS * 3600_000))).getTime() -
           s.loginAt.getTime()) /
           60_000
@@ -352,6 +401,13 @@ export class AnalyticsService {
         ...sessionSummary,
         recent: recentSessions,
       },
+      idleFlags: idleFlags.map((f) => ({
+        id: f.id,
+        flagDate: f.flagDate,
+        startedAt: f.startedAt,
+        endedAt: f.endedAt,
+        durationMinutes: f.durationMinutes,
+      })),
       recentActivity: recentActivity.map((a) => ({
         id: a.id,
         action: a.action,

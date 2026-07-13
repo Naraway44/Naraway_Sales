@@ -96,13 +96,27 @@ export function MemberProfilePage() {
       </Card>
 
       <Card className="p-5">
-        <h2 className="mb-1 text-sm font-semibold">Check-in / Check-out Activity</h2>
-        <p className="mb-3 text-xs text-muted-foreground">Time logged into the portal, rolled up from daily sessions.</p>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard label="Today" value={formatMinutes(data.sessions.todayMinutes)} />
-          <StatCard label="This Week" value={formatMinutes(data.sessions.thisWeekMinutes)} />
-          <StatCard label="This Month" value={formatMinutes(data.sessions.thisMonthMinutes)} />
-          <StatCard label="This Year" value={formatMinutes(data.sessions.thisYearMinutes)} />
+        <h2 className="mb-1 text-sm font-semibold">Logged In vs. Actually Active</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          "Logged in" is raw session time. "Active" only counts real mouse/keyboard/scroll activity — a big gap between
+          the two means the portal was open but nothing was being done. Read this alongside calls/leads touched below,
+          not on its own — presence isn't proof of work.
+        </p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {(
+            [
+              ["Today", "todayMinutes"],
+              ["This Week", "thisWeekMinutes"],
+              ["This Month", "thisMonthMinutes"],
+              ["This Year", "thisYearMinutes"],
+            ] as const
+          ).map(([label, key]) => (
+            <Card key={key} className="p-4">
+              <div className="text-xs text-muted-foreground">{label}</div>
+              <div className="text-lg font-semibold">{formatMinutes(data.sessions.loggedIn[key])} logged in</div>
+              <div className="text-sm text-muted-foreground">{formatMinutes(data.sessions.active[key])} active</div>
+            </Card>
+          ))}
         </div>
 
         {data.sessions.recent.length > 0 && (
@@ -112,7 +126,8 @@ export function MemberProfilePage() {
                 <tr>
                   <th className="py-1.5 pr-3">Check-in</th>
                   <th className="py-1.5 pr-3">Check-out</th>
-                  <th className="py-1.5">Duration</th>
+                  <th className="py-1.5 pr-3">Logged In</th>
+                  <th className="py-1.5">Active</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,11 +135,30 @@ export function MemberProfilePage() {
                   <tr key={idx} className="border-b border-border last:border-0">
                     <td className="py-1.5 pr-3">{new Date(s.loginAt).toLocaleString()}</td>
                     <td className="py-1.5 pr-3">{s.logoutAt ? new Date(s.logoutAt).toLocaleString() : "(session open)"}</td>
-                    <td className="py-1.5">{formatMinutes(s.durationMinutes)}</td>
+                    <td className="py-1.5 pr-3">{formatMinutes(s.loggedInMinutes)}</td>
+                    <td className="py-1.5">{formatMinutes(s.activeMinutes)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {data.idleFlags.length > 0 && (
+          <div className="mt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+              Away From Screen 30+ Minutes (logged in, no activity)
+            </h3>
+            <div className="space-y-1.5">
+              {data.idleFlags.map((f) => (
+                <div key={f.id} className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-xs">
+                  <span>
+                    {new Date(f.startedAt).toLocaleString()} → {new Date(f.endedAt).toLocaleTimeString()}
+                  </span>
+                  <span className="font-medium text-amber-700">{formatMinutes(f.durationMinutes)} away</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Card>

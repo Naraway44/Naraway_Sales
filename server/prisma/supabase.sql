@@ -101,6 +101,9 @@ create table if not exists leads (
   last_contact_at       timestamptz,
   next_follow_up        timestamptz,
   created_by_id         text references users(id),
+  -- Team comments as a jsonb array (each entry: {id, userId, userName, employeeId, body,
+  -- createdAt}), appended atomically via `comments || jsonb` rather than a separate table.
+  comments              jsonb not null default '[]'::jsonb,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
@@ -123,16 +126,6 @@ create table if not exists lead_activities (
 );
 create index if not exists lead_activities_lead_id_idx on lead_activities(lead_id);
 create index if not exists lead_activities_user_id_timestamp_idx on lead_activities(user_id, timestamp);
-
--- ---------- lead_comments ----------
-create table if not exists lead_comments (
-  id         text primary key default gen_random_uuid()::text,
-  lead_id    text not null references leads(id) on delete cascade,
-  user_id    text references users(id),
-  body       text not null,
-  created_at timestamptz not null default now()
-);
-create index if not exists lead_comments_lead_id_idx on lead_comments(lead_id);
 
 -- ---------- assignment_rules ----------
 create table if not exists assignment_rules (
@@ -164,9 +157,8 @@ alter table leads alter column contact_person drop not null;
 alter table leads alter column phone drop not null;
 
 -- 2026-07-14: allow a user account to be fully deleted (not just deactivated) without
--- orphaning leads/comments they created — their name shows as "Deleted user" instead.
+-- orphaning leads they created — their name shows as "Deleted user" instead.
 alter table leads alter column created_by_id drop not null;
-alter table lead_comments alter column user_id drop not null;
 
 -- 2026-07-14: smart remote-work tracking — login/logout sessions, response-time metric,
 -- "profiles opened" views, and call logging with outcomes.
@@ -183,9 +175,26 @@ create table if not exists user_sessions (
   id text primary key default gen_random_uuid()::text,
   user_id text not null references users(id) on delete cascade,
   login_at timestamptz not null default now(),
-  logout_at timestamptz
+  logout_at timestamptz,
+  -- Real active time within the session (only counted when the client's heartbeat shows
+  -- genuine mouse/keyboard/scroll activity), distinct from raw login-to-logout duration.
+  active_seconds integer not null default 0,
+  last_heartbeat_at timestamptz
 );
 create index if not exists user_sessions_user_id_idx on user_sessions(user_id);
+
+-- A discrete "away from screen 30+ minutes while still logged in" incident, recorded once
+-- per gap rather than folded into a number, so it's reviewable per day.
+create table if not exists idle_flags (
+  id text primary key default gen_random_uuid()::text,
+  user_id text not null references users(id) on delete cascade,
+  session_id text not null references user_sessions(id) on delete cascade,
+  flag_date date not null,
+  started_at timestamptz not null,
+  ended_at timestamptz not null,
+  duration_minutes integer not null
+);
+create index if not exists idle_flags_user_id_flag_date_idx on idle_flags(user_id, flag_date);
 
 create table if not exists lead_views (
   id text primary key default gen_random_uuid()::text,
@@ -206,3 +215,11 @@ drop index if exists users_team_id_idx;
 drop index if exists leads_owner_id_idx;
 drop index if exists leads_status_idx;
 create index if not exists lead_activities_user_id_timestamp_idx on lead_activities(user_id, timestamp);
+
+-- 2026-07-14: comments move from a separate table to a jsonb array directly on leads
+-- (each entry: {id, userId, userName, employeeId, body, createdAt}), appended atomically
+-- via `comments || jsonb` — no cross-lead comment query exists, so one row per lead beats
+-- a join here. The table definition above already reflects this for a fresh install; the
+-- drop below is only needed against a database created before this date.
+alter table leads add column if not exists comments jsonb not null default '[]'::jsonb;
+drop table if exists lead_comments;

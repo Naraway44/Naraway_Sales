@@ -40,6 +40,19 @@ export async function getAnalyticsByUser() {
   return data;
 }
 
+export interface SessionBuckets {
+  todayMinutes: number;
+  thisWeekMinutes: number;
+  thisMonthMinutes: number;
+  thisYearMinutes: number;
+}
+
+export interface IdleFlagSummary {
+  startedAt: string;
+  endedAt: string;
+  durationMinutes: number;
+}
+
 export interface MyOverview {
   assignedLeads: number;
   contactedLeads: number;
@@ -49,6 +62,12 @@ export interface MyOverview {
   conversionRate: number;
   byStatus: Partial<Record<LeadStatus, number>>;
   followUps: { overdue: number; today: number; upcoming: number };
+  sessions: { loggedIn: SessionBuckets; active: SessionBuckets };
+  today: {
+    callsLogged: number;
+    leadsViewed: number;
+    idleFlags: IdleFlagSummary[];
+  };
 }
 
 export async function getMyOverview() {
@@ -79,12 +98,11 @@ export interface MemberProfile {
   callStats: { total: number; byOutcome: Record<string, number> };
   viewStats: { totalViews: number; uniqueLeadsViewed: number };
   sessions: {
-    todayMinutes: number;
-    thisWeekMinutes: number;
-    thisMonthMinutes: number;
-    thisYearMinutes: number;
-    recent: { loginAt: string; logoutAt: string | null; durationMinutes: number }[];
+    loggedIn: SessionBuckets;
+    active: SessionBuckets;
+    recent: { loginAt: string; logoutAt: string | null; loggedInMinutes: number; activeMinutes: number }[];
   };
+  idleFlags: { id: string; flagDate: string; startedAt: string; endedAt: string; durationMinutes: number }[];
   recentActivity: {
     id: string;
     action: string;
