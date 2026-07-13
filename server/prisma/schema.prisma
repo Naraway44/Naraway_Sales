@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  FOUNDER
+  MANAGER
+  EXECUTIVE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+  ON_HOLD
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ActivityAction {
+  CREATED
+  ASSIGNED
+  REASSIGNED
+  STATUS_CHANGED
+  FIELD_UPDATED
+  IMPORTED
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  users           User[]
+  assignmentRules AssignmentRule[]
+  lastAssignedIdx Int               @default(0) // round-robin cursor
+
+  @@map("teams")
+}
+
+model Service {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  leads           Lead[]
+  assignmentRules AssignmentRule[]
+
+  @@map("services")
+}
+
+model LeadSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  leads Lead[]
+
+  @@map("lead_sources")
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  employeeId         String   @unique
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               Role
+  mustChangePassword Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  ownedLeads    Lead[]         @relation("LeadOwner")
+  createdLeads  Lead[]         @relation("LeadCreatedBy")
+  activities    LeadActivity[]
+  comments      LeadComment[]
+  auditLogs     AuditLog[]
+
+  @@index([teamId])
+  @@map("users")
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  companyName String
+  contactPerson String
+  phone       String
+  email       String?
+  website     String?
+  industry    String?
+  city        String?
+  state       String?
+  country     String?
+  notes       String?
+
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+
+  sourceId String?
+  source   LeadSource? @relation(fields: [sourceId], references: [id])
+
+  ownerId String?
+  owner   User?   @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  priority Priority   @default(MEDIUM)
+  status   LeadStatus @default(NEW)
+
+  expectedDealValue   Decimal? @db.Decimal(14, 2)
+  probability         Int?
+  expectedClosingDate DateTime?
+  lostReason          String?
+
+  lastContactAt DateTime?
+  nextFollowUp  DateTime?
+
+  createdById String
+  createdBy   User   @relation("LeadCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities LeadActivity[]
+  comments   LeadComment[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([serviceId])
+  @@index([phone])
+  @@index([email])
+  @@index([state])
+  @@index([city])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id        String         @id @default(cuid())
+  leadId    String
+  lead      Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id])
+  action    ActivityAction
+  notes     String?
+  timestamp DateTime       @default(now())
+
+  @@index([leadId])
+  @@map("lead_activities")
+}
+
+model LeadComment {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_comments")
+}
+
+model AssignmentRule {
+  id        String  @id @default(cuid())
+  serviceId String  @unique
+  service   Service @relation(fields: [serviceId], references: [id])
+  teamId    String
+  team      Team    @relation(fields: [teamId], references: [id])
+
+  @@map("assignment_rules")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  timestamp  DateTime @default(now())
+
+  @@map("audit_logs")
+}
