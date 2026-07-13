@@ -22,14 +22,14 @@ export function DashboardPage() {
       <h1 className="text-xl font-semibold">Dashboard</h1>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Total Leads" value={overview?.totalLeads ?? "—"} />
+        <StatCard label="Total Leads" value={overview?.totalLeads ?? "-"} />
         <StatCard
           label="Contacted"
-          value={overview?.contactedLeads ?? "—"}
+          value={overview?.contactedLeads ?? "-"}
           sub={overview ? `${overview.notYetContacted} not yet contacted` : undefined}
         />
-        <StatCard label="Won" value={overview?.wonLeads ?? "—"} sub={overview ? `${overview.conversionRate}% conversion` : undefined} />
-        <StatCard label="Unassigned" value={overview?.unassignedLeads ?? "—"} />
+        <StatCard label="Won" value={overview?.wonLeads ?? "-"} sub={overview ? `${overview.conversionRate}% conversion` : undefined} />
+        <StatCard label="Unassigned" value={overview?.unassignedLeads ?? "-"} />
       </div>
 
       <Card className="p-5">
@@ -46,23 +46,23 @@ export function DashboardPage() {
       </Card>
 
       <Card className="p-5">
-        <h2 className="mb-1 text-sm font-semibold">Lead Quality — Organic vs Inorganic</h2>
+        <h2 className="mb-1 text-sm font-semibold">Lead Quality - Organic vs Inorganic</h2>
         <p className="mb-3 text-xs text-muted-foreground">
-          Based on each lead source's Organic/Inorganic tag (set in Settings → Lead Sources).
+          Based on each lead source's Organic/Inorganic tag (set under Settings, Lead Sources).
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-md border border-border p-4">
             <div className="text-xs text-muted-foreground">Organic</div>
-            <div className="text-2xl font-semibold">{overview?.leadQuality.organic.count ?? "—"}</div>
+            <div className="text-2xl font-semibold">{overview?.leadQuality.organic.count ?? "-"}</div>
             <div className="text-xs text-muted-foreground">
-              {overview?.leadQuality.organic.won ?? 0} won · {overview?.leadQuality.organic.conversionRate ?? 0}% conversion
+              {overview?.leadQuality.organic.won ?? 0} won | {overview?.leadQuality.organic.conversionRate ?? 0}% conversion
             </div>
           </div>
           <div className="rounded-md border border-border p-4">
             <div className="text-xs text-muted-foreground">Inorganic</div>
-            <div className="text-2xl font-semibold">{overview?.leadQuality.inorganic.count ?? "—"}</div>
+            <div className="text-2xl font-semibold">{overview?.leadQuality.inorganic.count ?? "-"}</div>
             <div className="text-xs text-muted-foreground">
-              {overview?.leadQuality.inorganic.won ?? 0} won · {overview?.leadQuality.inorganic.conversionRate ?? 0}% conversion
+              {overview?.leadQuality.inorganic.won ?? 0} won | {overview?.leadQuality.inorganic.conversionRate ?? 0}% conversion
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export function DashboardPage() {
       <Card className="overflow-x-auto p-0">
         <div className="border-b border-border p-4">
           <h2 className="text-sm font-semibold">Sales Team Performance</h2>
-          <p className="text-xs text-muted-foreground">Each lead has exactly one owner — no duplicate effort across the team.</p>
+          <p className="text-xs text-muted-foreground">Each lead has exactly one owner - no duplicate effort across the team.</p>
         </div>
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/50 text-left text-xs uppercase text-muted-foreground">
@@ -92,14 +92,14 @@ export function DashboardPage() {
                 <td className="px-3 py-2 font-medium">
                   {u.name} <span className="font-mono text-xs text-muted-foreground">({u.employeeId})</span>
                 </td>
-                <td className="px-3 py-2">{u.team ?? "—"}</td>
+                <td className="px-3 py-2">{u.team ?? "-"}</td>
                 <td className="px-3 py-2">{u.assignedLeads}</td>
                 <td className="px-3 py-2">{u.contactedLeads}</td>
                 <td className="px-3 py-2">{u.wonLeads}</td>
                 <td className="px-3 py-2">{u.lostLeads}</td>
                 <td className="px-3 py-2">{u.conversionRate}%</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">
-                  {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : "—"}
+                  {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : "-"}
                 </td>
               </tr>
             ))}

@@ -13,7 +13,7 @@ import {
 import { assignmentService } from "@/modules/assignment/assignment.service";
 import { listActivities } from "@/modules/activities/activities.service";
 import { commentsService } from "@/modules/comments/comments.service";
-import { confirmImport, leadsToCsv, parseCsv, previewImport } from "./leadsImport.service";
+import { confirmImport, leadsToCsv, parseSpreadsheet, previewImport } from "./leadsImport.service";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -69,8 +69,9 @@ leadsRouter.post(
   requireRole("FOUNDER", "MANAGER"),
   upload.single("file"),
   asyncHandler(async (req, res) => {
-    if (!req.file) throw new ValidationError("CSV file is required");
-    res.json(parseCsv(req.file.buffer.toString("utf-8")));
+    if (!req.file) throw new ValidationError("A CSV or Excel (.xlsx) file is required");
+    const sheets = await parseSpreadsheet(req.file.buffer, req.file.originalname);
+    res.json(sheets);
   })
 );
 

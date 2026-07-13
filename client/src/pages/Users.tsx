@@ -1,26 +1,52 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createUser, listUsers } from "@/api/users";
+import { createUser, deleteUser, listUsers } from "@/api/users";
 import { listTeams } from "@/api/lookups";
 import { Role } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Input, Label, Select } from "@/components/Input";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useAuth } from "@/lib/auth";
 
 export function UsersPage() {
   const qc = useQueryClient();
+  const { user: currentUser } = useAuth();
+  const canCreate = currentUser?.role === "FOUNDER";
+  const canDelete = (targetRole: Role) => currentUser?.role === "FOUNDER" || targetRole === "EXECUTIVE";
   const { data } = useQuery({ queryKey: ["users-all"], queryFn: () => listUsers({ page: 1 }) });
   const { data: teams } = useQuery({ queryKey: ["teams"], queryFn: listTeams });
-  const [form, setForm] = useState({ name: "", email: "", role: "EXECUTIVE" as Role, teamId: "" });
-  const [created, setCreated] = useState<{ employeeId: string; tempPassword: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteUser(id),
+    onSuccess: () => {
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["users-all"] });
+    },
+  });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "EXECUTIVE" as Role,
+    teamId: "",
+    requirePasswordChange: true,
+  });
+  const [created, setCreated] = useState<{ employeeId: string } | null>(null);
+  const [createError, setCreateError] = useState("");
 
   const createMutation = useMutation({
     mutationFn: () => createUser({ ...form, teamId: form.teamId || null }),
     onSuccess: (result) => {
-      setCreated({ employeeId: result.user.employeeId, tempPassword: result.tempPassword });
-      setForm({ name: "", email: "", role: "EXECUTIVE", teamId: "" });
+      setCreated({ employeeId: result.user.employeeId });
+      setCreateError("");
+      setForm({ name: "", email: "", password: "", role: "EXECUTIVE", teamId: "", requirePasswordChange: true });
       qc.invalidateQueries({ queryKey: ["users-all"] });
+    },
+    onError: (err: any) => {
+      setCreateError(err.response?.data?.error ?? "Could not create account");
     },
   });
 
@@ -31,7 +57,7 @@ export function UsersPage() {
 
   return (
     <div className="grid grid-cols-3 gap-6">
-      <Card className="col-span-2 overflow-x-auto p-0">
+      <Card className={`overflow-x-auto p-0 ${canCreate ? "col-span-2" : "col-span-3"}`}>
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/50 text-left text-xs uppercase text-muted-foreground">
             <tr>
@@ -41,6 +67,7 @@ export function UsersPage() {
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Team</th>
               <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -50,11 +77,21 @@ export function UsersPage() {
                 <td className="px-3 py-2">{u.name}</td>
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2">{u.role}</td>
-                <td className="px-3 py-2">{u.team?.name ?? "—"}</td>
+                <td className="px-3 py-2">{u.team?.name ?? "-"}</td>
                 <td className="px-3 py-2">
                   <Badge className={u.isActive ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}>
                     {u.isActive ? "Active" : "Inactive"}
                   </Badge>
+                </td>
+                <td className="px-3 py-2 text-right">
+                  {u.id !== currentUser?.id && canDelete(u.role) && (
+                    <button
+                      onClick={() => setDeleteTarget({ id: u.id, name: u.name })}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -62,6 +99,7 @@ export function UsersPage() {
         </table>
       </Card>
 
+      {canCreate && (
       <Card className="p-5">
         <h2 className="mb-3 text-sm font-semibold">Add Sales Associate</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -73,6 +111,25 @@ export function UsersPage() {
             <Label>Email</Label>
             <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
+          <div>
+            <Label>Password</Label>
+            <Input
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="At least 8 characters"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={form.requirePasswordChange}
+              onChange={(e) => setForm({ ...form, requirePasswordChange: e.target.checked })}
+            />
+            Require password change on first login
+          </label>
           <div>
             <Label>Role</Label>
             <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
@@ -92,6 +149,7 @@ export function UsersPage() {
               ))}
             </Select>
           </div>
+          {createError && <p className="text-sm text-destructive">{createError}</p>}
           <Button type="submit" className="w-full" disabled={createMutation.isPending}>
             {createMutation.isPending ? "Creating..." : "Create Account"}
           </Button>
@@ -99,16 +157,24 @@ export function UsersPage() {
 
         {created && (
           <div className="mt-4 rounded-md bg-muted p-3 text-sm">
-            <p className="font-medium">Account created — share these credentials once:</p>
-            <p>
-              ID: <span className="font-mono">{created.employeeId}</span>
-            </p>
-            <p>
-              Temp password: <span className="font-mono">{created.tempPassword}</span>
+            <p className="font-medium">
+              Account created (ID: <span className="font-mono">{created.employeeId}</span>). Share the password you set
+              with them directly.
             </p>
           </div>
         )}
       </Card>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete this account?"
+        description={`${deleteTarget?.name} will be permanently removed and can no longer log in. Their past leads/comments stay in history but show as "Deleted user". This cannot be undone.`}
+        confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete account"}
+        destructive
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }

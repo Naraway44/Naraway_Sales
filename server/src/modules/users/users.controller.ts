@@ -53,3 +53,12 @@ usersRouter.patch(
     res.json(result);
   })
 );
+
+usersRouter.delete(
+  "/:id",
+  requireRole("FOUNDER", "MANAGER"),
+  asyncHandler(async (req, res) => {
+    await usersService.delete(req.params.id, req.user!.id, req.user!.role);
+    res.status(204).send();
+  })
+);

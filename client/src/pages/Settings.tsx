@@ -118,7 +118,7 @@ export function SettingsPage() {
       </div>
 
       <Card className="p-5">
-        <h2 className="mb-3 text-sm font-semibold">Service → Team Assignment Rules</h2>
+        <h2 className="mb-3 text-sm font-semibold">Service to Team Assignment Rules</h2>
         <p className="mb-3 text-xs text-muted-foreground">
           When a lead's service matches a rule, it auto-routes to that team (round robin among active executives).
         </p>
@@ -126,7 +126,7 @@ export function SettingsPage() {
           {rules?.map((r) => (
             <li key={r.id} className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1">
               <span>
-                {r.service.name} → {r.team.name}
+                {r.service.name} to {r.team.name}
               </span>
               <button
                 onClick={() => deleteRuleMutation.mutate(r.id)}

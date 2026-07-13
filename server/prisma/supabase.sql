@@ -80,8 +80,8 @@ create index if not exists users_team_id_idx on users(team_id);
 create table if not exists leads (
   id                    text primary key default gen_random_uuid()::text,
   company_name          text not null,
-  contact_person        text not null,
-  phone                 text not null,
+  contact_person        text,
+  phone                 text,
   email                 text,
   website               text,
   industry              text,
@@ -100,7 +100,7 @@ create table if not exists leads (
   lost_reason           text,
   last_contact_at       timestamptz,
   next_follow_up        timestamptz,
-  created_by_id         text not null references users(id),
+  created_by_id         text references users(id),
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
@@ -127,7 +127,7 @@ create index if not exists lead_activities_lead_id_idx on lead_activities(lead_i
 create table if not exists lead_comments (
   id         text primary key default gen_random_uuid()::text,
   lead_id    text not null references leads(id) on delete cascade,
-  user_id    text not null references users(id),
+  user_id    text references users(id),
   body       text not null,
   created_at timestamptz not null default now()
 );
@@ -156,3 +156,13 @@ create table if not exists audit_logs (
 --   create table if not exists notifications (...);
 -- Then re-run this entire file in the Supabase SQL Editor.
 -- ============================================================================
+
+-- 2026-07-13: support bulk company-data imports where contact person/phone are often
+-- unknown at import time (filled in later once the sales team makes contact).
+alter table leads alter column contact_person drop not null;
+alter table leads alter column phone drop not null;
+
+-- 2026-07-14: allow a user account to be fully deleted (not just deactivated) without
+-- orphaning leads/comments they created — their name shows as "Deleted user" instead.
+alter table leads alter column created_by_id drop not null;
+alter table lead_comments alter column user_id drop not null;

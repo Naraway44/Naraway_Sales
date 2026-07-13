@@ -101,6 +101,59 @@ export class AnalyticsService {
 
     return stats.sort((a, b) => b.wonLeads - a.wonLeads);
   }
+
+  /**
+   * Self-scoped performance summary for a single salesperson's own dashboard — their own
+   * leads, follow-up load, and conversion rate. Any authenticated user can call this for
+   * themselves; it never exposes another person's data.
+   */
+  async myOverview(userId: string) {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    const [
+      assigned,
+      contacted,
+      won,
+      lost,
+      statusGroups,
+      overdueFollowUps,
+      todayFollowUps,
+      upcomingFollowUps,
+    ] = await Promise.all([
+      prisma.lead.count({ where: { ownerId: userId } }),
+      prisma.lead.count({ where: { ownerId: userId, status: { in: CONTACTED_STATUSES } } }),
+      prisma.lead.count({ where: { ownerId: userId, status: "WON" } }),
+      prisma.lead.count({ where: { ownerId: userId, status: "LOST" } }),
+      prisma.lead.groupBy({ by: ["status"], where: { ownerId: userId }, _count: { _all: true } }),
+      prisma.lead.count({ where: { ownerId: userId, nextFollowUp: { lt: startOfToday } } }),
+      prisma.lead.count({
+        where: { ownerId: userId, nextFollowUp: { gte: startOfToday, lt: startOfTomorrow } },
+      }),
+      prisma.lead.count({ where: { ownerId: userId, nextFollowUp: { gte: startOfTomorrow } } }),
+    ]);
+
+    const byStatus = Object.fromEntries(statusGroups.map((g) => [g.status, g._count._all])) as Record<
+      LeadStatus,
+      number
+    >;
+
+    return {
+      assignedLeads: assigned,
+      contactedLeads: contacted,
+      notYetContacted: assigned - contacted,
+      wonLeads: won,
+      lostLeads: lost,
+      conversionRate: assigned > 0 ? Math.round((won / assigned) * 1000) / 10 : 0,
+      byStatus,
+      followUps: {
+        overdue: overdueFollowUps,
+        today: todayFollowUps,
+        upcoming: upcomingFollowUps,
+      },
+    };
+  }
 }
 
 export const analyticsService = new AnalyticsService();

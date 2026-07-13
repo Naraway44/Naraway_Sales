@@ -20,12 +20,3 @@ export async function generateEmployeeId(role: Role): Promise<string> {
   const next = (lastNumber + 1).toString().padStart(3, "0");
   return `${prefix}-${next}`;
 }
-
-export function generateTempPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) {
-    out += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return out;
-}

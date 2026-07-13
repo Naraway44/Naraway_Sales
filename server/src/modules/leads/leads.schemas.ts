@@ -16,8 +16,8 @@ export const priorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
 
 export const createLeadSchema = z.object({
   companyName: z.string().min(1),
-  contactPerson: z.string().min(1),
-  phone: z.string().min(1),
+  contactPerson: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   website: z.string().optional().nullable(),
   industry: z.string().optional().nullable(),

@@ -39,3 +39,19 @@ export async function getAnalyticsByUser() {
   const { data } = await api.get<UserPerformance[]>("/analytics/by-user");
   return data;
 }
+
+export interface MyOverview {
+  assignedLeads: number;
+  contactedLeads: number;
+  notYetContacted: number;
+  wonLeads: number;
+  lostLeads: number;
+  conversionRate: number;
+  byStatus: Partial<Record<LeadStatus, number>>;
+  followUps: { overdue: number; today: number; upcoming: number };
+}
+
+export async function getMyOverview() {
+  const { data } = await api.get<MyOverview>("/analytics/me");
+  return data;
+}

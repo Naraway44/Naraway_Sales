@@ -102,8 +102,8 @@ model User {
 model Lead {
   id            String  @id @default(cuid())
   companyName   String  @map("company_name")
-  contactPerson String  @map("contact_person")
-  phone         String
+  contactPerson String? @map("contact_person")
+  phone         String?
   email         String?
   website       String?
   industry      String?
@@ -132,8 +132,8 @@ model Lead {
   lastContactAt DateTime? @map("last_contact_at")
   nextFollowUp  DateTime? @map("next_follow_up")
 
-  createdById String @map("created_by_id")
-  createdBy   User   @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("LeadCreatedBy", fields: [createdById], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -169,8 +169,8 @@ model LeadComment {
   id        String   @id @default(cuid())
   leadId    String   @map("lead_id")
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id])
   body      String
   createdAt DateTime @default(now()) @map("created_at")
 

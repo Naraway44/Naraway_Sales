@@ -6,17 +6,20 @@ import { Layout } from "@/components/Layout";
 import { LoginPage } from "@/pages/Login";
 import { ChangePasswordPage } from "@/pages/ChangePassword";
 import { DashboardPage } from "@/pages/Dashboard";
+import { MyDashboardPage } from "@/pages/MyDashboard";
 import { LeadsListPage } from "@/pages/LeadsList";
 import { LeadDetailPage } from "@/pages/LeadDetail";
 import { NewLeadPage } from "@/pages/NewLead";
 import { UsersPage } from "@/pages/Users";
 import { SettingsPage } from "@/pages/Settings";
+import { ToastProvider } from "@/components/Toast";
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -26,6 +29,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Navigate to="/leads" replace />} />
+                <Route path="/my-dashboard" element={<MyDashboardPage />} />
                 <Route path="/leads" element={<LeadsListPage />} />
                 <Route path="/leads/new" element={<NewLeadPage />} />
                 <Route path="/leads/:id" element={<LeadDetailPage />} />
@@ -34,8 +38,11 @@ function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                 </Route>
 
-                <Route element={<ProtectedRoute roles={["FOUNDER"]} />}>
+                <Route element={<ProtectedRoute roles={["FOUNDER", "MANAGER"]} />}>
                   <Route path="/users" element={<UsersPage />} />
+                </Route>
+
+                <Route element={<ProtectedRoute roles={["FOUNDER"]} />}>
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
               </Route>
@@ -45,6 +52,7 @@ function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

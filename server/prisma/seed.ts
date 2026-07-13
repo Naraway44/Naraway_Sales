@@ -9,7 +9,7 @@ async function main() {
     update: {},
     create: { name: "AI Sales Team" },
   });
-  const legalTeam = await prisma.team.upsert({
+  await prisma.team.upsert({
     where: { name: "Legal Sales Team" },
     update: {},
     create: { name: "Legal Sales Team" },
@@ -29,12 +29,17 @@ async function main() {
   await prisma.leadSource.upsert({
     where: { name: "Website" },
     update: {},
-    create: { name: "Website" },
+    create: { name: "Website", isOrganic: true },
   });
   await prisma.leadSource.upsert({
     where: { name: "Referral" },
     update: {},
-    create: { name: "Referral" },
+    create: { name: "Referral", isOrganic: true },
+  });
+  await prisma.leadSource.upsert({
+    where: { name: "Paid Ads" },
+    update: {},
+    create: { name: "Paid Ads", isOrganic: false },
   });
 
   await prisma.assignmentRule.upsert({
@@ -43,36 +48,22 @@ async function main() {
     create: { serviceId: aiService.id, teamId: aiTeam.id },
   });
 
-  const passwordHash = await bcrypt.hash("ChangeMe123!", 10);
+  const passwordHash = await bcrypt.hash("Jack@7775", 10);
 
   await prisma.user.upsert({
-    where: { email: "founder@naraway.com" },
+    where: { email: "ceo@naraway.com" },
     update: {},
     create: {
       employeeId: "NRW-FD-001",
-      name: "Founder Admin",
-      email: "founder@naraway.com",
+      name: "Naraway CEO",
+      email: "ceo@naraway.com",
       passwordHash,
       role: Role.FOUNDER,
       mustChangePassword: true,
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: "exec1@naraway.com" },
-    update: {},
-    create: {
-      employeeId: "NRW-SE-001",
-      name: "Demo Executive",
-      email: "exec1@naraway.com",
-      passwordHash,
-      role: Role.EXECUTIVE,
-      teamId: aiTeam.id,
-      mustChangePassword: true,
-    },
-  });
-
-  console.log("Seed complete. Login: founder@naraway.com / ChangeMe123!");
+  console.log("Seed complete. Login: ceo@naraway.com / Jack@7775");
 }
 
 main()

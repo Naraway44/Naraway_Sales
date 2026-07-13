@@ -65,20 +65,29 @@ export async function addLeadComment(id: string, body: string) {
   return data;
 }
 
-export function exportLeadsUrl(params: LeadListParams) {
-  const query = new URLSearchParams(params as Record<string, string>).toString();
-  const base = (api.defaults.baseURL ?? "").replace(/\/$/, "");
-  return `${base}/leads/export?${query}`;
+export async function exportLeads(params: LeadListParams) {
+  const response = await api.get("/leads/export", { params, responseType: "blob" });
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "leads-export.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export interface ParsedSheet {
+  sheetName: string;
+  headerRowIndex: number;
+  headers: string[];
+  rows: Record<string, string>[];
 }
 
 export async function parseCsvFile(file: File) {
   const formData = new FormData();
   formData.append("file", file);
-  const { data } = await api.post<{ headers: string[]; rows: Record<string, string>[] }>(
-    "/leads/import/parse",
-    formData,
-    { headers: { "Content-Type": "multipart/form-data" } }
-  );
+  const { data } = await api.post<ParsedSheet[]>("/leads/import/parse", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 
