@@ -30,3 +30,12 @@ analyticsRouter.get(
     res.json(await analyticsService.myOverview(req.user!.id));
   })
 );
+
+/** Full activity/progress profile for one team member — the "member profile" page. */
+analyticsRouter.get(
+  "/members/:id",
+  requireRole("FOUNDER", "MANAGER"),
+  asyncHandler(async (req, res) => {
+    res.json(await analyticsService.memberProfile(req.params.id));
+  })
+);

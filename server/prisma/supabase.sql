@@ -166,3 +166,32 @@ alter table leads alter column phone drop not null;
 -- orphaning leads/comments they created — their name shows as "Deleted user" instead.
 alter table leads alter column created_by_id drop not null;
 alter table lead_comments alter column user_id drop not null;
+
+-- 2026-07-14: smart remote-work tracking — login/logout sessions, response-time metric,
+-- "profiles opened" views, and call logging with outcomes.
+alter table users add column if not exists last_login_at timestamptz;
+alter table leads add column if not exists first_contacted_at timestamptz;
+
+do $$ begin
+  create type "CallOutcome" as enum ('CONNECTED', 'NO_ANSWER', 'VOICEMAIL', 'CALL_BACK_LATER', 'WRONG_NUMBER');
+exception when duplicate_object then null; end $$;
+
+alter type "ActivityAction" add value if not exists 'CALLED';
+
+create table if not exists user_sessions (
+  id text primary key default gen_random_uuid()::text,
+  user_id text not null references users(id) on delete cascade,
+  login_at timestamptz not null default now(),
+  logout_at timestamptz
+);
+create index if not exists user_sessions_user_id_idx on user_sessions(user_id);
+
+create table if not exists lead_views (
+  id text primary key default gen_random_uuid()::text,
+  lead_id text not null references leads(id) on delete cascade,
+  user_id text not null references users(id) on delete cascade,
+  view_date date not null,
+  viewed_at timestamptz not null default now(),
+  unique (lead_id, user_id, view_date)
+);
+create index if not exists lead_views_user_id_idx on lead_views(user_id);

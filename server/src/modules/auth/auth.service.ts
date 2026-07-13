@@ -16,11 +16,17 @@ export class AuthService {
       throw new UnauthorizedError("Invalid email or password");
     }
 
+    const [session] = await prisma.$transaction([
+      prisma.userSession.create({ data: { userId: user.id } }),
+      prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
+    ]);
+
     const token = signToken({
       id: user.id,
       role: user.role,
       teamId: user.teamId,
       mustChangePassword: user.mustChangePassword,
+      sessionId: session.id,
     });
 
     return {
@@ -29,7 +35,15 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, input: ChangePasswordInput) {
+  /** Closes out the session's check-out time. Safe to call even if already closed. */
+  async logout(sessionId: string) {
+    await prisma.userSession.updateMany({
+      where: { id: sessionId, logoutAt: null },
+      data: { logoutAt: new Date() },
+    });
+  }
+
+  async changePassword(userId: string, sessionId: string, input: ChangePasswordInput) {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
     const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
@@ -48,6 +62,7 @@ export class AuthService {
       role: updated.role,
       teamId: updated.teamId,
       mustChangePassword: updated.mustChangePassword,
+      sessionId,
     });
 
     return { token, user: this.toSafeUser(updated) };

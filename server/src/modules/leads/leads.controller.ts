@@ -99,7 +99,9 @@ leadsRouter.post(
 leadsRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    res.json(await leadsService.getById(req.user!, req.params.id));
+    const lead = await leadsService.getById(req.user!, req.params.id);
+    await leadsService.logView(req.user!, req.params.id);
+    res.json(lead);
   })
 );
 
@@ -176,5 +178,19 @@ leadsRouter.post(
     const { body } = req.body as { body: string };
     if (!body?.trim()) throw new ValidationError("Comment body is required");
     res.status(201).json(await commentsService.create(req.params.id, req.user!.id, body.trim()));
+  })
+);
+
+const CALL_OUTCOMES = ["CONNECTED", "NO_ANSWER", "VOICEMAIL", "CALL_BACK_LATER", "WRONG_NUMBER"];
+
+leadsRouter.post(
+  "/:id/calls",
+  asyncHandler(async (req, res) => {
+    const { outcome, note } = req.body as { outcome: string; note?: string };
+    if (!CALL_OUTCOMES.includes(outcome)) {
+      throw new ValidationError(`outcome must be one of: ${CALL_OUTCOMES.join(", ")}`);
+    }
+    await leadsService.logCall(req.user!, req.params.id, outcome, note?.trim() || undefined);
+    res.status(201).send();
   })
 );

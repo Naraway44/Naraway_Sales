@@ -9,6 +9,7 @@ export interface AuthUser {
   role: Role;
   teamId: string | null;
   mustChangePassword: boolean;
+  sessionId: string;
 }
 
 declare global {

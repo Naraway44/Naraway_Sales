@@ -55,3 +55,47 @@ export async function getMyOverview() {
   const { data } = await api.get<MyOverview>("/analytics/me");
   return data;
 }
+
+export interface MemberProfile {
+  user: {
+    id: string;
+    name: string;
+    employeeId: string;
+    email: string;
+    role: string;
+    team: string | null;
+    isActive: boolean;
+    lastLoginAt: string | null;
+  };
+  leadStats: {
+    assignedLeads: number;
+    contactedLeads: number;
+    wonLeads: number;
+    lostLeads: number;
+    conversionRate: number;
+    avgResponseTimeHours: number | null;
+  };
+  neglectedLeads: { id: string; companyName: string; status: LeadStatus; daysSinceUpdate: number }[];
+  callStats: { total: number; byOutcome: Record<string, number> };
+  viewStats: { totalViews: number; uniqueLeadsViewed: number };
+  sessions: {
+    todayMinutes: number;
+    thisWeekMinutes: number;
+    thisMonthMinutes: number;
+    thisYearMinutes: number;
+    recent: { loginAt: string; logoutAt: string | null; durationMinutes: number }[];
+  };
+  recentActivity: {
+    id: string;
+    action: string;
+    notes: string | null;
+    timestamp: string;
+    leadId: string;
+    leadCompanyName: string;
+  }[];
+}
+
+export async function getMemberProfile(userId: string) {
+  const { data } = await api.get<MemberProfile>(`/analytics/members/${userId}`);
+  return data;
+}

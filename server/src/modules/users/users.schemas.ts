@@ -14,6 +14,8 @@ export const updateUserSchema = z.object({
   role: z.enum(["FOUNDER", "MANAGER", "EXECUTIVE"]).optional(),
   teamId: z.string().cuid().optional().nullable(),
   isActive: z.boolean().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  requirePasswordChange: z.boolean().optional(),
 });
 
 export const listUsersQuerySchema = z.object({

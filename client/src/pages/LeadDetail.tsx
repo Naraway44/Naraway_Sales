@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, updateLead } from "@/api/leads";
+import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
 import { listUsers } from "@/api/users";
 import { LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
 import { Badge } from "@/components/Badge";
@@ -13,6 +13,14 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 
+const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
+  CONNECTED: "Connected",
+  NO_ANSWER: "No Answer",
+  VOICEMAIL: "Voicemail",
+  CALL_BACK_LATER: "Call Back Later",
+  WRONG_NUMBER: "Wrong Number",
+};
+
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -20,6 +28,8 @@ export function LeadDetailPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [comment, setComment] = useState("");
+  const [callOutcome, setCallOutcome] = useState<CallOutcome | "">("");
+  const [callNote, setCallNote] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState({ status: "NEW", priority: "MEDIUM", nextFollowUp: "", notes: "" });
   const canManage = user?.role === "FOUNDER" || user?.role === "MANAGER";
@@ -33,6 +43,17 @@ export function LeadDetailPage() {
   const assignMutation = useMutation({ mutationFn: (ownerId: string) => assignLead(id!, ownerId), onSuccess: () => { qc.invalidateQueries({ queryKey: ["lead", id] }); qc.invalidateQueries({ queryKey: ["lead-activities", id] }); showToast("Lead owner updated."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not assign lead."), "error") });
   const commentMutation = useMutation({ mutationFn: (body: string) => addLeadComment(id!, body), onSuccess: () => { setComment(""); qc.invalidateQueries({ queryKey: ["lead-comments", id] }); showToast("Comment added."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not add comment."), "error") });
   const deleteMutation = useMutation({ mutationFn: () => deleteLead(id!), onSuccess: () => { showToast("Lead deleted."); navigate("/leads"); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not delete lead."), "error") });
+  const callMutation = useMutation({
+    mutationFn: () => logCall(id!, callOutcome as CallOutcome, callNote.trim() || undefined),
+    onSuccess: () => {
+      setCallOutcome("");
+      setCallNote("");
+      qc.invalidateQueries({ queryKey: ["lead-activities", id] });
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      showToast("Call logged.");
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not log call."), "error"),
+  });
 
   if (isLoading) return <p className="text-muted-foreground">Loading lead...</p>;
   if (isError || !lead) return <p className="text-destructive">{getErrorMessage(error, "Could not load this lead.")}</p>;
@@ -46,6 +67,21 @@ export function LeadDetailPage() {
         <div className="mt-4"><Label>Notes</Label><Textarea rows={4} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })}/></div>
         <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" disabled={!isDirty || updateMutation.isPending} onClick={() => setDraft({ status: lead.status, priority: lead.priority, nextFollowUp: lead.nextFollowUp?.slice(0, 10) ?? "", notes: lead.notes ?? "" })}>Discard</Button><Button disabled={!isDirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>{updateMutation.isPending ? "Saving..." : "Save changes"}</Button></div>
         {canManage && <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end"><div className="w-full sm:max-w-xs"><Label>Owner</Label><Select value={lead.ownerId ?? ""} onChange={(event) => event.target.value && assignMutation.mutate(event.target.value)} disabled={assignMutation.isPending}><option value="">Unassigned</option>{usersData?.items.filter((item) => item.role === "EXECUTIVE" && item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.employeeId})</option>)}</Select></div><Button variant="destructive" className="sm:ml-auto" onClick={() => setConfirmDelete(true)}>Delete lead</Button></div>}
+      </Card>
+      <Card className="p-4 sm:p-5">
+        <h2 className="mb-3 text-sm font-semibold">Log a Call</h2>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Select value={callOutcome} onChange={(event) => setCallOutcome(event.target.value as CallOutcome)} className="sm:max-w-[200px]">
+            <option value="">Outcome...</option>
+            {CALL_OUTCOMES.map((outcome) => (
+              <option key={outcome} value={outcome}>{CALL_OUTCOME_LABELS[outcome]}</option>
+            ))}
+          </Select>
+          <Input placeholder="Optional note" value={callNote} onChange={(event) => setCallNote(event.target.value)} />
+          <Button onClick={() => callOutcome && callMutation.mutate()} disabled={!callOutcome || callMutation.isPending}>
+            {callMutation.isPending ? "Logging..." : "Log Call"}
+          </Button>
+        </div>
       </Card>
       <Card className="p-4 sm:p-5"><h2 className="mb-3 text-sm font-semibold">Comments</h2><div className="mb-4 space-y-3">{comments?.map((item) => <div key={item.id} className="rounded-md bg-muted/50 p-3 text-sm"><div className="mb-1 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between"><span className="font-medium text-foreground">{item.user ? `${item.user.name} (${item.user.employeeId})` : "Deleted user"}</span><span>{new Date(item.createdAt).toLocaleString()}</span></div>{item.body}</div>)}{comments?.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}</div><div className="flex flex-col gap-2 sm:flex-row"><Textarea aria-label="New comment" placeholder="Add a comment for the team..." value={comment} onChange={(event) => setComment(event.target.value)} rows={2}/><Button onClick={() => comment.trim() && commentMutation.mutate(comment.trim())} disabled={!comment.trim() || commentMutation.isPending}>{commentMutation.isPending ? "Posting..." : "Post"}</Button></div></Card>
     </div>

@@ -38,6 +38,15 @@ enum ActivityAction {
   STATUS_CHANGED
   FIELD_UPDATED
   IMPORTED
+  CALLED
+}
+
+enum CallOutcome {
+  CONNECTED
+  NO_ANSWER
+  VOICEMAIL
+  CALL_BACK_LATER
+  WRONG_NUMBER
 }
 
 model Team {
@@ -75,16 +84,17 @@ model LeadSource {
 }
 
 model User {
-  id                 String   @id @default(cuid())
-  employeeId         String   @unique @map("employee_id")
+  id                 String    @id @default(cuid())
+  employeeId         String    @unique @map("employee_id")
   name               String
-  email              String   @unique
-  passwordHash       String   @map("password_hash")
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
   role               Role
-  mustChangePassword Boolean  @default(true) @map("must_change_password")
-  isActive           Boolean  @default(true) @map("is_active")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  isActive           Boolean   @default(true) @map("is_active")
+  lastLoginAt        DateTime? @map("last_login_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   teamId String? @map("team_id")
   team   Team?   @relation(fields: [teamId], references: [id])
@@ -94,9 +104,26 @@ model User {
   activities   LeadActivity[]
   comments     LeadComment[]
   auditLogs    AuditLog[]
+  sessions     UserSession[]
+  leadViews    LeadView[]
 
   @@index([teamId])
   @@map("users")
+}
+
+// One row per login, closed out on explicit logout or (if the browser just closes) treated
+// as ended at token expiry for reporting purposes. This is the source of truth for
+// check-in/check-out time; daily/weekly/monthly/yearly summaries are computed from these
+// rows rather than stored, so there's nothing to keep in sync.
+model UserSession {
+  id       String    @id @default(cuid())
+  userId   String    @map("user_id")
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt  DateTime  @default(now()) @map("login_at")
+  logoutAt DateTime? @map("logout_at")
+
+  @@index([userId])
+  @@map("user_sessions")
 }
 
 model Lead {
@@ -129,8 +156,9 @@ model Lead {
   expectedClosingDate DateTime? @map("expected_closing_date")
   lostReason          String?   @map("lost_reason")
 
-  lastContactAt DateTime? @map("last_contact_at")
-  nextFollowUp  DateTime? @map("next_follow_up")
+  lastContactAt    DateTime? @map("last_contact_at")
+  nextFollowUp     DateTime? @map("next_follow_up")
+  firstContactedAt DateTime? @map("first_contacted_at")
 
   createdById String? @map("created_by_id")
   createdBy   User?   @relation("LeadCreatedBy", fields: [createdById], references: [id])
@@ -140,6 +168,7 @@ model Lead {
 
   activities LeadActivity[]
   comments   LeadComment[]
+  views      LeadView[]
 
   @@index([ownerId])
   @@index([status])
@@ -176,6 +205,22 @@ model LeadComment {
 
   @@index([leadId])
   @@map("lead_comments")
+}
+
+// One row per (lead, user, day) — "did this rep open this lead today", deduped so normal
+// page re-renders/refetches don't inflate the count. Powers "profiles opened" metrics.
+model LeadView {
+  id       String   @id @default(cuid())
+  leadId   String   @map("lead_id")
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId   String   @map("user_id")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewDate DateTime @map("view_date") @db.Date
+  viewedAt DateTime @default(now()) @map("viewed_at")
+
+  @@unique([leadId, userId, viewDate])
+  @@index([userId])
+  @@map("lead_views")
 }
 
 model AssignmentRule {

@@ -11,6 +11,7 @@ import { LeadsListPage } from "@/pages/LeadsList";
 import { LeadDetailPage } from "@/pages/LeadDetail";
 import { NewLeadPage } from "@/pages/NewLead";
 import { UsersPage } from "@/pages/Users";
+import { MemberProfilePage } from "@/pages/MemberProfile";
 import { SettingsPage } from "@/pages/Settings";
 import { ToastProvider } from "@/components/Toast";
 
@@ -40,6 +41,7 @@ function App() {
 
                 <Route element={<ProtectedRoute roles={["FOUNDER", "MANAGER"]} />}>
                   <Route path="/users" element={<UsersPage />} />
+                  <Route path="/users/:id" element={<MemberProfilePage />} />
                 </Route>
 
                 <Route element={<ProtectedRoute roles={["FOUNDER"]} />}>

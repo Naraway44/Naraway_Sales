@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createUser, deleteUser, listUsers } from "@/api/users";
 import { listTeams } from "@/api/lookups";
@@ -74,7 +75,11 @@ export function UsersPage() {
             {data?.items.map((u) => (
               <tr key={u.id} className="border-b border-border last:border-0">
                 <td className="px-3 py-2 font-mono text-xs">{u.employeeId}</td>
-                <td className="px-3 py-2">{u.name}</td>
+                <td className="px-3 py-2">
+                  <Link to={`/users/${u.id}`} className="hover:text-primary hover:underline">
+                    {u.name}
+                  </Link>
+                </td>
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2">{u.role}</td>
                 <td className="px-3 py-2">{u.team?.name ?? "-"}</td>

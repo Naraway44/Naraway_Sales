@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { fetchMe } from "@/api/auth";
+import { fetchMe, logout as logoutRequest } from "@/api/auth";
 import { User } from "@/api/types";
 
 interface AuthContextValue {
@@ -33,6 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    logoutRequest().catch(() => {
+      // Best-effort — even if this fails (offline, expired token), clear the local session.
+    });
     localStorage.removeItem("token");
     setUser(null);
   }

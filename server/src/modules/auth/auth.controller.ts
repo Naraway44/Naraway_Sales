@@ -25,8 +25,17 @@ authRouter.post(
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) throw new ValidationError(parsed.error.flatten());
 
-    const result = await authService.changePassword(req.user!.id, parsed.data);
+    const result = await authService.changePassword(req.user!.id, req.user!.sessionId, parsed.data);
     res.json(result);
+  })
+);
+
+authRouter.post(
+  "/logout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await authService.logout(req.user!.sessionId);
+    res.status(204).send();
   })
 );
 

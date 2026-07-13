@@ -65,6 +65,13 @@ export async function addLeadComment(id: string, body: string) {
   return data;
 }
 
+export const CALL_OUTCOMES = ["CONNECTED", "NO_ANSWER", "VOICEMAIL", "CALL_BACK_LATER", "WRONG_NUMBER"] as const;
+export type CallOutcome = (typeof CALL_OUTCOMES)[number];
+
+export async function logCall(id: string, outcome: CallOutcome, note?: string) {
+  await api.post(`/leads/${id}/calls`, { outcome, note });
+}
+
 export async function exportLeads(params: LeadListParams) {
   const response = await api.get("/leads/export", { params, responseType: "blob" });
   const url = URL.createObjectURL(response.data);

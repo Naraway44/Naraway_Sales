@@ -86,7 +86,16 @@ export class LeadsService {
 
   async update(user: AuthUser, id: string, input: UpdateLeadInput) {
     const existing = await this.getById(user, id);
-    const updated = await prisma.lead.update({ where: { id }, data: input });
+
+    // First time this lead moves off NEW is its "first contacted" moment — the response-time
+    // metric (assignment/creation to first contact) is measured from here, set once and never
+    // overwritten by later status changes.
+    const data: UpdateLeadInput & { firstContactedAt?: Date } = { ...input };
+    if (input.status && input.status !== "NEW" && existing.status === "NEW" && !existing.firstContactedAt) {
+      data.firstContactedAt = new Date();
+    }
+
+    const updated = await prisma.lead.update({ where: { id }, data });
 
     if (input.status && input.status !== existing.status) {
       await logActivity({
@@ -104,6 +113,30 @@ export class LeadsService {
 
   async delete(id: string) {
     await prisma.lead.delete({ where: { id } });
+  }
+
+  /** Deduped "opened this lead today" signal — powers the "profiles opened" activity metric. */
+  async logView(user: AuthUser, leadId: string) {
+    const today = new Date();
+    const viewDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    await prisma.leadView.upsert({
+      where: { leadId_userId_viewDate: { leadId, userId: user.id, viewDate } },
+      update: {},
+      create: { leadId, userId: user.id, viewDate },
+    });
+  }
+
+  /** Records that a call happened on this lead — outcome-tagged, not real telephony. */
+  async logCall(user: AuthUser, id: string, outcome: string, note?: string) {
+    await this.getById(user, id); // enforces RBAC scope + existence
+    await logActivity({
+      leadId: id,
+      userId: user.id,
+      action: ActivityAction.CALLED,
+      notes: note ? `${outcome}: ${note}` : outcome,
+    });
+    await prisma.lead.update({ where: { id }, data: { lastContactAt: new Date() } });
   }
 }
 
