@@ -5,6 +5,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Layout } from "@/components/Layout";
 import { LoginPage } from "@/pages/Login";
 import { ChangePasswordPage } from "@/pages/ChangePassword";
+import { DashboardPage } from "@/pages/Dashboard";
 import { LeadsListPage } from "@/pages/LeadsList";
 import { LeadDetailPage } from "@/pages/LeadDetail";
 import { NewLeadPage } from "@/pages/NewLead";
@@ -28,6 +29,10 @@ function App() {
                 <Route path="/leads" element={<LeadsListPage />} />
                 <Route path="/leads/new" element={<NewLeadPage />} />
                 <Route path="/leads/:id" element={<LeadDetailPage />} />
+
+                <Route element={<ProtectedRoute roles={["FOUNDER", "MANAGER"]} />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                </Route>
 
                 <Route element={<ProtectedRoute roles={["FOUNDER"]} />}>
                   <Route path="/users" element={<UsersPage />} />

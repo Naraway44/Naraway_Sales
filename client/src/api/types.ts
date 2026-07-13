@@ -26,6 +26,7 @@ export interface Service {
 export interface LeadSource {
   id: string;
   name: string;
+  isOrganic: boolean;
 }
 
 export interface User {

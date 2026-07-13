@@ -9,6 +9,7 @@ import { authRouter } from "@/modules/auth/auth.controller";
 import { usersRouter } from "@/modules/users/users.controller";
 import { leadsRouter } from "@/modules/leads/leads.controller";
 import { assignmentRulesRouter } from "@/modules/assignmentRules/assignmentRules.controller";
+import { analyticsRouter } from "@/modules/analytics/analytics.controller";
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,7 @@ export function createApp() {
   app.use("/api/v1/services", createLookupRouter("service"));
   app.use("/api/v1/lead-sources", createLookupRouter("leadSource"));
   app.use("/api/v1/assignment-rules", assignmentRulesRouter);
+  app.use("/api/v1/analytics", analyticsRouter);
 
   app.use(errorHandler);
 

@@ -55,8 +55,10 @@ create table if not exists services (
 create table if not exists lead_sources (
   id         text primary key default gen_random_uuid()::text,
   name       text not null unique,
+  is_organic boolean not null default true,
   created_at timestamptz not null default now()
 );
+alter table lead_sources add column if not exists is_organic boolean not null default true;
 
 -- ---------- users ----------
 create table if not exists users (

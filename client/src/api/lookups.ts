@@ -26,8 +26,8 @@ export async function listLeadSources() {
   return data;
 }
 
-export async function createLeadSource(name: string) {
-  const { data } = await api.post<LeadSource>("/lead-sources", { name });
+export async function createLeadSource(name: string, isOrganic = true) {
+  const { data } = await api.post<LeadSource>("/lead-sources", { name, isOrganic });
   return data;
 }
 

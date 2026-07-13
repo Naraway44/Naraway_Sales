@@ -5,12 +5,13 @@ import { asyncHandler } from "@/common/middleware/asyncHandler";
 import { requireAuth, requirePasswordChanged, requireRole } from "@/common/middleware/auth";
 import { ConflictError, ValidationError } from "@/common/errors/AppError";
 
-const nameSchema = z.object({ name: z.string().min(1) });
+const nameSchema = z.object({ name: z.string().min(1), isOrganic: z.boolean().optional() });
 
 /**
  * Factory for simple admin-managed lookup tables (Team, Service, LeadSource) that all
- * share the same shape: { id, name }. Keeps these three modules from duplicating identical
- * CRUD boilerplate while still being three separate Prisma models/routes.
+ * share a common shape ({ id, name }, with LeadSource additionally carrying isOrganic).
+ * Keeps these three modules from duplicating identical CRUD boilerplate while still
+ * being three separate Prisma models/routes.
  */
 export function createLookupRouter(modelName: "team" | "service" | "leadSource") {
   const router = Router();
@@ -36,7 +37,12 @@ export function createLookupRouter(modelName: "team" | "service" | "leadSource")
       const existing = await model.findUnique({ where: { name: parsed.data.name } });
       if (existing) throw new ConflictError(`"${parsed.data.name}" already exists`);
 
-      const item = await model.create({ data: parsed.data });
+      const data =
+        modelName === "leadSource"
+          ? { name: parsed.data.name, isOrganic: parsed.data.isOrganic ?? true }
+          : { name: parsed.data.name };
+
+      const item = await model.create({ data });
       res.status(201).json(item);
     })
   );

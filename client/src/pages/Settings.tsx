@@ -19,17 +19,20 @@ function LookupEditor({
   title,
   items,
   onCreate,
+  showOrganicToggle,
 }: {
   title: string;
-  items: { id: string; name: string }[] | undefined;
-  onCreate: (name: string) => Promise<unknown>;
+  items: { id: string; name: string; isOrganic?: boolean }[] | undefined;
+  onCreate: (name: string, isOrganic?: boolean) => Promise<unknown>;
+  showOrganicToggle?: boolean;
 }) {
   const [value, setValue] = useState("");
+  const [isOrganic, setIsOrganic] = useState(true);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!value.trim()) return;
-    await onCreate(value.trim());
+    await onCreate(value.trim(), showOrganicToggle ? isOrganic : undefined);
     setValue("");
   }
 
@@ -38,14 +41,27 @@ function LookupEditor({
       <h2 className="mb-3 text-sm font-semibold">{title}</h2>
       <ul className="mb-3 space-y-1 text-sm">
         {items?.map((i) => (
-          <li key={i.id} className="rounded-md bg-muted/50 px-2 py-1">
-            {i.name}
+          <li key={i.id} className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1">
+            <span>{i.name}</span>
+            {showOrganicToggle && (
+              <span className={i.isOrganic ? "text-xs text-green-700" : "text-xs text-amber-700"}>
+                {i.isOrganic ? "Organic" : "Inorganic"}
+              </span>
+            )}
           </li>
         ))}
       </ul>
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="space-y-2">
         <Input placeholder={`New ${title.toLowerCase()}...`} value={value} onChange={(e) => setValue(e.target.value)} />
-        <Button type="submit">Add</Button>
+        {showOrganicToggle && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={isOrganic} onChange={(e) => setIsOrganic(e.target.checked)} />
+            Organic source (unchecked = inorganic, e.g. paid/purchased)
+          </label>
+        )}
+        <Button type="submit" className="w-full">
+          Add
+        </Button>
       </form>
     </Card>
   );
@@ -70,7 +86,8 @@ export function SettingsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
   });
   const sourceMutation = useMutation({
-    mutationFn: createLeadSource,
+    mutationFn: ({ name, isOrganic }: { name: string; isOrganic?: boolean }) =>
+      createLeadSource(name, isOrganic),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["lead-sources"] }),
   });
   const ruleMutation = useMutation({
@@ -92,7 +109,12 @@ export function SettingsPage() {
       <div className="grid grid-cols-3 gap-6">
         <LookupEditor title="Teams" items={teams} onCreate={(n) => teamMutation.mutateAsync(n)} />
         <LookupEditor title="Services" items={services} onCreate={(n) => serviceMutation.mutateAsync(n)} />
-        <LookupEditor title="Lead Sources" items={sources} onCreate={(n) => sourceMutation.mutateAsync(n)} />
+        <LookupEditor
+          title="Lead Sources"
+          items={sources}
+          showOrganicToggle
+          onCreate={(name, isOrganic) => sourceMutation.mutateAsync({ name, isOrganic })}
+        />
       </div>
 
       <Card className="p-5">

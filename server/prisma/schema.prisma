@@ -66,6 +66,7 @@ model Service {
 model LeadSource {
   id        String   @id @default(cuid())
   name      String   @unique
+  isOrganic Boolean  @default(true) @map("is_organic")
   createdAt DateTime @default(now()) @map("created_at")
 
   leads Lead[]

@@ -6,6 +6,7 @@ export function Layout() {
   const { user, logout } = useAuth();
 
   const links = [
+    { to: "/dashboard", label: "Dashboard", roles: ["FOUNDER", "MANAGER"] },
     { to: "/leads", label: "Leads", roles: ["FOUNDER", "MANAGER", "EXECUTIVE"] },
     { to: "/users", label: "Team", roles: ["FOUNDER"] },
     { to: "/settings", label: "Settings", roles: ["FOUNDER"] },
