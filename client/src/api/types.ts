@@ -39,6 +39,7 @@ export interface User {
   team?: Team | null;
   isActive: boolean;
   mustChangePassword: boolean;
+  leadCapacity: number;
   createdAt: string;
 }
 
@@ -68,6 +69,7 @@ export interface Lead {
   lostReason?: string | null;
   lastContactAt?: string | null;
   nextFollowUp?: string | null;
+  ownerPinnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

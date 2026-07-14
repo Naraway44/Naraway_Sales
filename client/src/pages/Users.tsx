@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createUser, deleteUser, listUsers } from "@/api/users";
+import { createUser, deleteUser, listUsers, updateUser } from "@/api/users";
 import { listTeams } from "@/api/lookups";
 import { Role } from "@/api/types";
 import { Button } from "@/components/Button";
@@ -27,6 +27,10 @@ export function UsersPage() {
       qc.invalidateQueries({ queryKey: ["users-all"] });
     },
   });
+  const capacityMutation = useMutation({
+    mutationFn: ({ id, leadCapacity }: { id: string; leadCapacity: number }) => updateUser(id, { leadCapacity }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users-all"] }),
+  });
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -34,6 +38,7 @@ export function UsersPage() {
     role: "EXECUTIVE" as Role,
     teamId: "",
     requirePasswordChange: true,
+    leadCapacity: 60,
   });
   const [created, setCreated] = useState<{ employeeId: string } | null>(null);
   const [createError, setCreateError] = useState("");
@@ -43,7 +48,7 @@ export function UsersPage() {
     onSuccess: (result) => {
       setCreated({ employeeId: result.user.employeeId });
       setCreateError("");
-      setForm({ name: "", email: "", password: "", role: "EXECUTIVE", teamId: "", requirePasswordChange: true });
+      setForm({ name: "", email: "", password: "", role: "EXECUTIVE", teamId: "", requirePasswordChange: true, leadCapacity: 60 });
       qc.invalidateQueries({ queryKey: ["users-all"] });
     },
     onError: (err: any) => {
@@ -67,6 +72,7 @@ export function UsersPage() {
               <th className="px-3 py-2">Email</th>
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Team</th>
+              <th className="px-3 py-2">Capacity</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -83,6 +89,23 @@ export function UsersPage() {
                 <td className="px-3 py-2">{u.email}</td>
                 <td className="px-3 py-2">{u.role}</td>
                 <td className="px-3 py-2">{u.team?.name ?? "-"}</td>
+                <td className="px-3 py-2">
+                  {canCreate && u.role === "EXECUTIVE" ? (
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      defaultValue={u.leadCapacity}
+                      className="w-20"
+                      onBlur={(e) => {
+                        const value = Number(e.target.value);
+                        if (value !== u.leadCapacity) capacityMutation.mutate({ id: u.id, leadCapacity: value });
+                      }}
+                    />
+                  ) : (
+                    u.leadCapacity
+                  )}
+                </td>
                 <td className="px-3 py-2">
                   <Badge className={u.isActive ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}>
                     {u.isActive ? "Active" : "Inactive"}
@@ -153,6 +176,16 @@ export function UsersPage() {
                 </option>
               ))}
             </Select>
+          </div>
+          <div>
+            <Label>Lead Capacity (max open leads at once)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              value={form.leadCapacity}
+              onChange={(e) => setForm({ ...form, leadCapacity: Number(e.target.value) })}
+            />
           </div>
           {createError && <p className="text-sm text-destructive">{createError}</p>}
           <Button type="submit" className="w-full" disabled={createMutation.isPending}>

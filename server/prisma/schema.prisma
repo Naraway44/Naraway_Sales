@@ -122,6 +122,11 @@ model User {
   mustChangePassword Boolean   @default(true) @map("must_change_password")
   isActive           Boolean   @default(true) @map("is_active")
   lastLoginAt        DateTime? @map("last_login_at")
+  // Max open (non-Won/Lost) leads this person should hold at once. Round-robin
+  // assignment skips reps at/over this; a rep going quiet on leads within capacity
+  // gets those leads auto-redistributed rather than piling up further. Default is the
+  // middle of the "48 to 88 leads, given only picked-up calls take real time" range.
+  leadCapacity       Int       @default(60) @map("lead_capacity")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -207,6 +212,13 @@ model Lead {
 
   ownerId String? @map("owner_id")
   owner   User?   @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  // Owner marked "I'm working this myself" — excluded from both the stale-lead
+  // auto-reassignment sweep and the owner's open-lead capacity count for 30 days from
+  // this timestamp, so keeping a lead they believe is workable doesn't block them from
+  // receiving fresh ones. After 30 days it automatically returns to the normal pool
+  // (re-eligible for reassignment/capacity) — no expiry job needed, just a date check.
+  ownerPinnedAt DateTime? @map("owner_pinned_at")
 
   priority Priority   @default(MEDIUM)
   status   LeadStatus @default(NEW)

@@ -13,12 +13,16 @@ export async function createUser(input: {
   role: Role;
   teamId?: string | null;
   requirePasswordChange?: boolean;
+  leadCapacity?: number;
 }) {
   const { data } = await api.post<{ user: User }>("/users", input);
   return data;
 }
 
-export async function updateUser(id: string, input: Partial<Pick<User, "name" | "role" | "isActive">> & { teamId?: string | null }) {
+export async function updateUser(
+  id: string,
+  input: Partial<Pick<User, "name" | "role" | "isActive" | "leadCapacity">> & { teamId?: string | null }
+) {
   const { data } = await api.patch<User>(`/users/${id}`, input);
   return data;
 }

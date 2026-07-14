@@ -104,11 +104,24 @@ export class LeadsService {
         action: ActivityAction.STATUS_CHANGED,
         notes: `${existing.status} -> ${input.status}`,
       });
+
+      // Closing a lead out frees a slot in the owner's capacity — hand them a fresh
+      // unassigned lead right away instead of waiting for them to notice they're idle.
+      const justClosed = (input.status === "WON" || input.status === "LOST") && updated.ownerId;
+      if (justClosed) {
+        await assignmentService.backfillIfCapacityFreed(updated.ownerId!, user.id);
+      }
     } else {
       await logActivity({ leadId: id, userId: user.id, action: ActivityAction.FIELD_UPDATED });
     }
 
     return updated;
+  }
+
+  /** Owner marks "I'm working this myself" (or clears it) — see AssignmentService.setPinned. */
+  async setPinned(user: AuthUser, id: string, pinned: boolean) {
+    await this.getById(user, id); // enforces RBAC scope + existence
+    return assignmentService.setPinned(id, pinned);
   }
 
   async delete(id: string) {

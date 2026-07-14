@@ -39,3 +39,15 @@ analyticsRouter.get(
     res.json(await analyticsService.memberProfile(req.params.id));
   })
 );
+
+/**
+ * Live "what needs attention right now" feed — polled by the client every ~60s. Org-wide
+ * for Founder/Manager (and doubles as the trigger for the stale-lead auto-reassignment
+ * sweep); self-scoped for Executives.
+ */
+analyticsRouter.get(
+  "/alerts",
+  asyncHandler(async (req, res) => {
+    res.json(await analyticsService.getAlerts(req.user!));
+  })
+);

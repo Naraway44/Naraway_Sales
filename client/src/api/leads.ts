@@ -72,6 +72,12 @@ export async function logCall(id: string, outcome: CallOutcome, note?: string) {
   await api.post(`/leads/${id}/calls`, { outcome, note });
 }
 
+/** Owner marks "I'm working this myself" — excluded from stale-reassignment/capacity for 30 days. */
+export async function setLeadPinned(id: string, pinned: boolean) {
+  const { data } = await api.post<Lead>(`/leads/${id}/pin`, { pinned });
+  return data;
+}
+
 export async function exportLeads(params: LeadListParams) {
   const response = await api.get("/leads/export", { params, responseType: "blob" });
   const url = URL.createObjectURL(response.data);

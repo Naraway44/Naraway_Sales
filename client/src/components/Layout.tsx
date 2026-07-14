@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -43,6 +44,7 @@ export function Layout() {
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm">
+            <NotificationBell />
             <span className="text-muted-foreground">
               {user?.name} <span className="text-xs">({user?.employeeId})</span>
             </span>

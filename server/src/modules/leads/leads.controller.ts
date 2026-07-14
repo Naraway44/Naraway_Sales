@@ -194,3 +194,11 @@ leadsRouter.post(
     res.status(201).send();
   })
 );
+
+leadsRouter.post(
+  "/:id/pin",
+  asyncHandler(async (req, res) => {
+    const { pinned } = req.body as { pinned: boolean };
+    res.json(await leadsService.setPinned(req.user!, req.params.id, !!pinned));
+  })
+);

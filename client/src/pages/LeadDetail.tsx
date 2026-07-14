@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
+import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
 import { listUsers } from "@/api/users";
 import { LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
 import { Badge } from "@/components/Badge";
@@ -54,14 +54,27 @@ export function LeadDetailPage() {
     },
     onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not log call."), "error"),
   });
+  const pinMutation = useMutation({
+    mutationFn: (pinned: boolean) => setLeadPinned(id!, pinned),
+    onSuccess: (_data, pinned) => {
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      showToast(pinned ? "Saved for yourself — won't be auto-reassigned for 30 days." : "Unsaved — back in the normal pool.");
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not update."), "error"),
+  });
 
   if (isLoading) return <p className="text-muted-foreground">Loading lead...</p>;
   if (isError || !lead) return <p className="text-destructive">{getErrorMessage(error, "Could not load this lead.")}</p>;
   const isDirty = draft.status !== lead.status || draft.priority !== lead.priority || draft.nextFollowUp !== (lead.nextFollowUp?.slice(0, 10) ?? "") || draft.notes !== (lead.notes ?? "");
+  const isPinned = !!lead.ownerPinnedAt && Date.now() - new Date(lead.ownerPinnedAt).getTime() < 30 * 86_400_000;
 
   return <div className="grid gap-6 xl:grid-cols-3">
     <div className="space-y-4 xl:col-span-2">
-      <Card className="p-4 sm:p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-xl font-semibold">{lead.companyName}</h1><p className="text-sm text-muted-foreground">{lead.contactPerson}</p></div><div className="flex gap-2"><Badge className={STATUS_COLORS[lead.status]}>{STATUS_LABELS[lead.status]}</Badge><Badge className={PRIORITY_COLORS[lead.priority]}>{lead.priority}</Badge></div></div>
+      <Card className="p-4 sm:p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-xl font-semibold">{lead.companyName}</h1><p className="text-sm text-muted-foreground">{lead.contactPerson}</p></div><div className="flex items-center gap-2"><Badge className={STATUS_COLORS[lead.status]}>{STATUS_LABELS[lead.status]}</Badge><Badge className={PRIORITY_COLORS[lead.priority]}>{lead.priority}</Badge>{lead.ownerId === user?.id && (
+        <Button variant="secondary" onClick={() => pinMutation.mutate(!isPinned)} disabled={pinMutation.isPending}>
+          {isPinned ? "Saved by you" : "Save for myself"}
+        </Button>
+      )}</div></div>
         <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><Field label="Phone" value={lead.phone}/><Field label="Email" value={lead.email}/><Field label="Website" value={lead.website}/><Field label="Industry" value={lead.industry}/><Field label="City" value={lead.city}/><Field label="State" value={lead.state}/><Field label="Country" value={lead.country}/><Field label="Service" value={lead.service?.name}/><Field label="Source" value={lead.source?.name}/><Field label="Expected Deal Value" value={lead.expectedDealValue ? `INR ${lead.expectedDealValue}` : undefined}/><Field label="Probability" value={lead.probability !== null && lead.probability !== undefined ? `${lead.probability}%` : undefined}/><Field label="Expected Closing" value={lead.expectedClosingDate ? new Date(lead.expectedClosingDate).toLocaleDateString() : undefined}/></div>
         <div className="mt-5 grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><Select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{LEAD_STATUSES.map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</Select></div><div><Label>Priority</Label><Select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value })}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></Select></div><div><Label>Next Follow-up</Label><Input type="date" value={draft.nextFollowUp} onChange={(event) => setDraft({ ...draft, nextFollowUp: event.target.value })}/></div></div>
         <div className="mt-4"><Label>Notes</Label><Textarea rows={4} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })}/></div>

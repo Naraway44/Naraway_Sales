@@ -1,6 +1,23 @@
 import { LeadStatus, Role } from "@prisma/client";
 import { prisma } from "@/common/prisma";
 import { NotFoundError } from "@/common/errors/AppError";
+import { AuthUser } from "@/common/middleware/auth";
+import { assignmentService } from "@/modules/assignment/assignment.service";
+
+export interface AlertItem {
+  id: string;
+  severity: "warning" | "critical";
+  title: string;
+  message: string;
+  // "self" means "go to my own dashboard" — used for an Executive's own alerts, since
+  // they can't reach the Founder/Manager-only Member Profile route (even their own).
+  link: { type: "user" | "lead" | "self"; id: string };
+}
+
+// Anything open this long without a heartbeat, while still logged in, counts as "away
+// right now" for the live alert feed — same threshold as the persisted IdleFlag record,
+// just computed live instead of waiting for the next heartbeat/logout to write one.
+const LIVE_IDLE_THRESHOLD_MINUTES = 30;
 
 const CONTACTED_STATUSES: LeadStatus[] = [
   "CONTACTED",
@@ -417,6 +434,109 @@ export class AnalyticsService {
         leadCompanyName: a.lead.companyName,
       })),
     };
+  }
+
+  /**
+   * Live "what needs attention right now" feed — computed fresh on every call, not stored,
+   * so there's no background job to run and nothing to mark read/dismissed. Founder/Manager
+   * get an org-wide view (who's going quiet, who's overdue, who's away right now);
+   * Executives get the same shape scoped to just themselves, so it doubles as a gentle
+   * self-check ("you've been away 40 min") rather than one-sided monitoring.
+   */
+  async getAlerts(user: AuthUser): Promise<AlertItem[]> {
+    const now = new Date();
+    const neglectedThreshold = new Date(now.getTime() - 5 * 86_400_000);
+    const isOrgWide = user.role === "FOUNDER" || user.role === "MANAGER";
+    const alerts: AlertItem[] = [];
+
+    // Founder/Manager poll this every ~60s while the app is open — piggyback the stale-lead
+    // redistribution sweep here instead of a cron job, so leads actually get moved to
+    // someone else, not just flagged for a human to reassign by hand.
+    if (isOrgWide) {
+      const { reassignedCount } = await assignmentService.reassignStaleLeads();
+      if (reassignedCount > 0) {
+        alerts.push({
+          id: `auto-reassigned-${now.getTime()}`,
+          severity: "warning",
+          title: `${reassignedCount} lead(s) auto-reassigned`,
+          message: "Untouched 5+ days — moved to another rep on the same team automatically.",
+          link: { type: "self", id: user.id },
+        });
+      }
+    }
+
+    const linkTo = (userId: string): AlertItem["link"] => ({ type: isOrgWide ? "user" : "self", id: userId });
+
+    const repScope = isOrgWide ? {} : { id: user.id };
+    const reps = await prisma.user.findMany({
+      where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] }, isActive: true, ...repScope },
+      select: { id: true, name: true, employeeId: true },
+    });
+    if (reps.length === 0) return alerts;
+    const repIds = reps.map((r) => r.id);
+    const repById = new Map(reps.map((r) => [r.id, r]));
+
+    const [neglectedGroups, overdueGroups, openSessions] = await Promise.all([
+      prisma.lead.groupBy({
+        by: ["ownerId"],
+        where: { ownerId: { in: repIds }, status: { in: NEGLECTED_STATUSES }, updatedAt: { lt: neglectedThreshold } },
+        _count: { _all: true },
+        _min: { updatedAt: true },
+      }),
+      prisma.lead.groupBy({
+        by: ["ownerId"],
+        where: { ownerId: { in: repIds }, status: { in: NEGLECTED_STATUSES }, nextFollowUp: { lt: now } },
+        _count: { _all: true },
+      }),
+      prisma.userSession.findMany({
+        where: { userId: { in: repIds }, logoutAt: null },
+        select: { userId: true, loginAt: true, lastHeartbeatAt: true },
+      }),
+    ]);
+
+    for (const g of neglectedGroups) {
+      if (!g.ownerId) continue;
+      const rep = repById.get(g.ownerId);
+      if (!rep) continue;
+      const oldestDays = g._min.updatedAt ? Math.floor((now.getTime() - g._min.updatedAt.getTime()) / 86_400_000) : 0;
+      alerts.push({
+        id: `neglected-${g.ownerId}`,
+        severity: oldestDays >= 10 ? "critical" : "warning",
+        title: isOrgWide ? `${rep.name} has ${g._count._all} neglected lead(s)` : `You have ${g._count._all} neglected lead(s)`,
+        message: `Oldest untouched for ${oldestDays} day(s). Nothing moved in 5+ days.`,
+        link: linkTo(g.ownerId),
+      });
+    }
+
+    for (const g of overdueGroups) {
+      if (!g.ownerId) continue;
+      const rep = repById.get(g.ownerId);
+      if (!rep) continue;
+      alerts.push({
+        id: `overdue-${g.ownerId}`,
+        severity: "warning",
+        title: isOrgWide ? `${rep.name} has ${g._count._all} overdue follow-up(s)` : `You have ${g._count._all} overdue follow-up(s)`,
+        message: "Follow-up date has already passed.",
+        link: linkTo(g.ownerId),
+      });
+    }
+
+    for (const s of openSessions) {
+      const lastActive = s.lastHeartbeatAt ?? s.loginAt;
+      const awayMinutes = (now.getTime() - lastActive.getTime()) / 60_000;
+      if (awayMinutes < LIVE_IDLE_THRESHOLD_MINUTES) continue;
+      const rep = repById.get(s.userId);
+      if (!rep) continue;
+      alerts.push({
+        id: `away-${s.userId}`,
+        severity: awayMinutes >= 60 ? "critical" : "warning",
+        title: isOrgWide ? `${rep.name} is logged in but away` : "You've been away from the screen",
+        message: `No activity for ${Math.round(awayMinutes)} minute(s), session still open.`,
+        link: linkTo(s.userId),
+      });
+    }
+
+    return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "critical" ? -1 : 1));
   }
 }
 
