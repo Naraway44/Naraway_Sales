@@ -186,11 +186,17 @@ const CALL_OUTCOMES = ["CONNECTED", "NO_ANSWER", "VOICEMAIL", "CALL_BACK_LATER",
 leadsRouter.post(
   "/:id/calls",
   asyncHandler(async (req, res) => {
-    const { outcome, note } = req.body as { outcome: string; note?: string };
+    const { outcome, note, nextFollowUp } = req.body as { outcome: string; note?: string; nextFollowUp?: string };
     if (!CALL_OUTCOMES.includes(outcome)) {
       throw new ValidationError(`outcome must be one of: ${CALL_OUTCOMES.join(", ")}`);
     }
-    await leadsService.logCall(req.user!, req.params.id, outcome, note?.trim() || undefined);
+    await leadsService.logCall(
+      req.user!,
+      req.params.id,
+      outcome,
+      note?.trim() || undefined,
+      nextFollowUp ? new Date(nextFollowUp) : undefined
+    );
     res.status(201).send();
   })
 );

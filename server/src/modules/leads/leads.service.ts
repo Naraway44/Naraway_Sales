@@ -140,16 +140,36 @@ export class LeadsService {
     });
   }
 
-  /** Records that a call happened on this lead — outcome-tagged, not real telephony. */
-  async logCall(user: AuthUser, id: string, outcome: string, note?: string) {
-    await this.getById(user, id); // enforces RBAC scope + existence
+  /**
+   * Records that a call happened on this lead — outcome-tagged, not real telephony.
+   * A no-answer/voicemail/"call back later" isn't a dead lead, just one that needs
+   * another attempt — the rep's own chosen follow-up date always wins (they know when
+   * the person asked to be called back); if they don't give one, it auto-queues for
+   * tomorrow as a safety net so it doesn't silently fall through the cracks. Same rep
+   * retries first — only the stale-lead sweep redistributes it, and only if nobody
+   * follows up on that date either. A real conversation (Connected) or a bad number don't
+   * get an auto follow-up — those need a conscious next step from the rep, not a blind date.
+   */
+  async logCall(user: AuthUser, id: string, outcome: string, note?: string, explicitNextFollowUp?: Date) {
+    const lead = await this.getById(user, id); // enforces RBAC scope + existence
     await logActivity({
       leadId: id,
       userId: user.id,
       action: ActivityAction.CALLED,
       notes: note ? `${outcome}: ${note}` : outcome,
     });
-    await prisma.lead.update({ where: { id }, data: { lastContactAt: new Date() } });
+
+    const data: { lastContactAt: Date; nextFollowUp?: Date } = { lastContactAt: new Date() };
+    const needsRetry = outcome === "NO_ANSWER" || outcome === "VOICEMAIL" || outcome === "CALL_BACK_LATER";
+
+    if (explicitNextFollowUp) {
+      data.nextFollowUp = explicitNextFollowUp;
+    } else if (needsRetry) {
+      const alreadyQueuedSooner = lead.nextFollowUp && new Date(lead.nextFollowUp) <= new Date(Date.now() + 86_400_000);
+      if (!alreadyQueuedSooner) data.nextFollowUp = new Date(Date.now() + 86_400_000);
+    }
+
+    await prisma.lead.update({ where: { id }, data });
   }
 }
 

@@ -3,6 +3,7 @@ import { prisma } from "@/common/prisma";
 import { NotFoundError } from "@/common/errors/AppError";
 import { AuthUser } from "@/common/middleware/auth";
 import { assignmentService } from "@/modules/assignment/assignment.service";
+import { findStaleLeads } from "@/modules/leads/leadStaleness";
 
 export interface AlertItem {
   id: string;
@@ -278,21 +279,15 @@ export class AnalyticsService {
     };
   }
 
-  /** Leads still open that haven't been touched in `days`+ — the "going quiet" signal. */
+  /** Leads still open with no MEANINGFUL activity (call, status move, etc.) in `days`+. */
   private async neglectedLeads(ownerId: string, days = 5) {
-    const threshold = new Date(Date.now() - days * 86_400_000);
-    const leads = await prisma.lead.findMany({
-      where: { ownerId, status: { in: NEGLECTED_STATUSES }, updatedAt: { lt: threshold } },
-      select: { id: true, companyName: true, status: true, updatedAt: true },
-      orderBy: { updatedAt: "asc" },
-      take: 20,
-    });
+    const leads = await findStaleLeads({ ownerIds: [ownerId], statuses: NEGLECTED_STATUSES, days });
 
-    return leads.map((l) => ({
+    return leads.slice(0, 20).map((l) => ({
       id: l.id,
       companyName: l.companyName,
       status: l.status,
-      daysSinceUpdate: Math.floor((Date.now() - l.updatedAt.getTime()) / 86_400_000),
+      daysSinceUpdate: Math.floor((Date.now() - l.lastMeaningfulAt.getTime()) / 86_400_000),
     }));
   }
 
@@ -445,7 +440,6 @@ export class AnalyticsService {
    */
   async getAlerts(user: AuthUser): Promise<AlertItem[]> {
     const now = new Date();
-    const neglectedThreshold = new Date(now.getTime() - 5 * 86_400_000);
     const isOrgWide = user.role === "FOUNDER" || user.role === "MANAGER";
     const alerts: AlertItem[] = [];
 
@@ -476,13 +470,8 @@ export class AnalyticsService {
     const repIds = reps.map((r) => r.id);
     const repById = new Map(reps.map((r) => [r.id, r]));
 
-    const [neglectedGroups, overdueGroups, openSessions] = await Promise.all([
-      prisma.lead.groupBy({
-        by: ["ownerId"],
-        where: { ownerId: { in: repIds }, status: { in: NEGLECTED_STATUSES }, updatedAt: { lt: neglectedThreshold } },
-        _count: { _all: true },
-        _min: { updatedAt: true },
-      }),
+    const [staleLeads, overdueGroups, openSessions] = await Promise.all([
+      findStaleLeads({ ownerIds: repIds, statuses: NEGLECTED_STATUSES, days: 5 }),
       prisma.lead.groupBy({
         by: ["ownerId"],
         where: { ownerId: { in: repIds }, status: { in: NEGLECTED_STATUSES }, nextFollowUp: { lt: now } },
@@ -494,17 +483,26 @@ export class AnalyticsService {
       }),
     ]);
 
-    for (const g of neglectedGroups) {
-      if (!g.ownerId) continue;
-      const rep = repById.get(g.ownerId);
+    const staleByOwner = new Map<string, { count: number; oldestDays: number }>();
+    for (const lead of staleLeads) {
+      if (!lead.ownerId) continue;
+      const days = Math.floor((now.getTime() - lead.lastMeaningfulAt.getTime()) / 86_400_000);
+      const existing = staleByOwner.get(lead.ownerId);
+      staleByOwner.set(lead.ownerId, {
+        count: (existing?.count ?? 0) + 1,
+        oldestDays: Math.max(existing?.oldestDays ?? 0, days),
+      });
+    }
+
+    for (const [ownerId, { count, oldestDays }] of staleByOwner.entries()) {
+      const rep = repById.get(ownerId);
       if (!rep) continue;
-      const oldestDays = g._min.updatedAt ? Math.floor((now.getTime() - g._min.updatedAt.getTime()) / 86_400_000) : 0;
       alerts.push({
-        id: `neglected-${g.ownerId}`,
+        id: `neglected-${ownerId}`,
         severity: oldestDays >= 10 ? "critical" : "warning",
-        title: isOrgWide ? `${rep.name} has ${g._count._all} neglected lead(s)` : `You have ${g._count._all} neglected lead(s)`,
-        message: `Oldest untouched for ${oldestDays} day(s). Nothing moved in 5+ days.`,
-        link: linkTo(g.ownerId),
+        title: isOrgWide ? `${rep.name} has ${count} neglected lead(s)` : `You have ${count} neglected lead(s)`,
+        message: `Oldest untouched for ${oldestDays} day(s). No real activity (call, status change) in 5+ days.`,
+        link: linkTo(ownerId),
       });
     }
 

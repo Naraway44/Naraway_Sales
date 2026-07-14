@@ -2,6 +2,7 @@ import { prisma } from "@/common/prisma";
 import { ActivityAction, LeadStatus, Prisma, Role } from "@prisma/client";
 import { NotFoundError, ValidationError } from "@/common/errors/AppError";
 import { logActivity } from "@/modules/activities/activities.service";
+import { findStaleLeads } from "@/modules/leads/leadStaleness";
 
 const OPEN_STATUSES: LeadStatus[] = [
   "NEW",
@@ -191,22 +192,17 @@ export class AssignmentService {
    * Runs on-demand (piggybacked on the alerts check) rather than a cron job.
    */
   async reassignStaleLeads(): Promise<{ reassignedCount: number }> {
-    const now = new Date();
-    const threshold = new Date(now.getTime() - STALE_REASSIGN_DAYS * 86_400_000);
+    const activeReps = await prisma.user.findMany({
+      where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] }, isActive: true },
+      select: { id: true, teamId: true },
+    });
+    const teamByOwnerId = new Map(activeReps.map((r) => [r.id, r.teamId]));
+    if (activeReps.length === 0) return { reassignedCount: 0 };
 
-    const staleLeads = await prisma.lead.findMany({
-      where: {
-        ownerId: { not: null },
-        status: { in: OPEN_STATUSES },
-        updatedAt: { lt: threshold },
-        ...notCurrentlyPinned(now),
-      },
-      select: {
-        id: true,
-        serviceId: true,
-        ownerId: true,
-        owner: { select: { teamId: true } },
-      },
+    const staleLeads = await findStaleLeads({
+      ownerIds: activeReps.map((r) => r.id),
+      statuses: OPEN_STATUSES,
+      days: STALE_REASSIGN_DAYS,
     });
 
     let reassignedCount = 0;
@@ -214,7 +210,7 @@ export class AssignmentService {
     for (const lead of staleLeads) {
       const previousOwnerId = lead.ownerId!;
 
-      let teamId: string | null = lead.owner?.teamId ?? null;
+      let teamId: string | null = teamByOwnerId.get(previousOwnerId) ?? null;
       if (lead.serviceId) {
         const rule = await prisma.assignmentRule.findUnique({ where: { serviceId: lead.serviceId } });
         if (rule) teamId = rule.teamId;

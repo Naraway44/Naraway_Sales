@@ -30,6 +30,8 @@ export function LeadDetailPage() {
   const [comment, setComment] = useState("");
   const [callOutcome, setCallOutcome] = useState<CallOutcome | "">("");
   const [callNote, setCallNote] = useState("");
+  const [callFollowUp, setCallFollowUp] = useState("");
+  const outcomeNeedsRetry = callOutcome === "NO_ANSWER" || callOutcome === "VOICEMAIL" || callOutcome === "CALL_BACK_LATER";
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState({ status: "NEW", priority: "MEDIUM", nextFollowUp: "", notes: "" });
   const canManage = user?.role === "FOUNDER" || user?.role === "MANAGER";
@@ -44,10 +46,11 @@ export function LeadDetailPage() {
   const commentMutation = useMutation({ mutationFn: (body: string) => addLeadComment(id!, body), onSuccess: () => { setComment(""); qc.invalidateQueries({ queryKey: ["lead-comments", id] }); showToast("Comment added."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not add comment."), "error") });
   const deleteMutation = useMutation({ mutationFn: () => deleteLead(id!), onSuccess: () => { showToast("Lead deleted."); navigate("/leads"); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not delete lead."), "error") });
   const callMutation = useMutation({
-    mutationFn: () => logCall(id!, callOutcome as CallOutcome, callNote.trim() || undefined),
+    mutationFn: () => logCall(id!, callOutcome as CallOutcome, callNote.trim() || undefined, callFollowUp || undefined),
     onSuccess: () => {
       setCallOutcome("");
       setCallNote("");
+      setCallFollowUp("");
       qc.invalidateQueries({ queryKey: ["lead-activities", id] });
       qc.invalidateQueries({ queryKey: ["lead", id] });
       showToast("Call logged.");
@@ -95,6 +98,12 @@ export function LeadDetailPage() {
             {callMutation.isPending ? "Logging..." : "Log Call"}
           </Button>
         </div>
+        {outcomeNeedsRetry && (
+          <div className="mt-2">
+            <Label>Follow up on (leave blank for tomorrow by default)</Label>
+            <Input type="date" value={callFollowUp} onChange={(event) => setCallFollowUp(event.target.value)} className="max-w-[200px]" />
+          </div>
+        )}
       </Card>
       <Card className="p-4 sm:p-5"><h2 className="mb-3 text-sm font-semibold">Comments</h2><div className="mb-4 space-y-3">{comments?.map((item) => <div key={item.id} className="rounded-md bg-muted/50 p-3 text-sm"><div className="mb-1 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between"><span className="font-medium text-foreground">{item.userName} ({item.employeeId})</span><span>{new Date(item.createdAt).toLocaleString()}</span></div>{item.body}</div>)}{comments?.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}</div><div className="flex flex-col gap-2 sm:flex-row"><Textarea aria-label="New comment" placeholder="Add a comment for the team..." value={comment} onChange={(event) => setComment(event.target.value)} rows={2}/><Button onClick={() => comment.trim() && commentMutation.mutate(comment.trim())} disabled={!comment.trim() || commentMutation.isPending}>{commentMutation.isPending ? "Posting..." : "Post"}</Button></div></Card>
     </div>

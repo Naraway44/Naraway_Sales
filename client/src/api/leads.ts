@@ -68,8 +68,8 @@ export async function addLeadComment(id: string, body: string) {
 export const CALL_OUTCOMES = ["CONNECTED", "NO_ANSWER", "VOICEMAIL", "CALL_BACK_LATER", "WRONG_NUMBER"] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
 
-export async function logCall(id: string, outcome: CallOutcome, note?: string) {
-  await api.post(`/leads/${id}/calls`, { outcome, note });
+export async function logCall(id: string, outcome: CallOutcome, note?: string, nextFollowUp?: string) {
+  await api.post(`/leads/${id}/calls`, { outcome, note, nextFollowUp });
 }
 
 /** Owner marks "I'm working this myself" — excluded from stale-reassignment/capacity for 30 days. */
