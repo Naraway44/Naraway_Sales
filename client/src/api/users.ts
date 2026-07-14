@@ -21,9 +21,17 @@ export async function createUser(input: {
 
 export async function updateUser(
   id: string,
-  input: Partial<Pick<User, "name" | "role" | "isActive" | "leadCapacity">> & { teamId?: string | null }
+  input: Partial<Pick<User, "name" | "role" | "isActive" | "leadCapacity" | "workStartTime" | "workEndTime" | "workDays">> & {
+    teamId?: string | null;
+  }
 ) {
   const { data } = await api.patch<User>(`/users/${id}`, input);
+  return data;
+}
+
+/** Founder-only: sets one default shift/working-days pattern for every active rep at once. */
+export async function applyDefaultSchedule(input: { workStartTime: string; workEndTime: string; workDays: number[] }) {
+  const { data } = await api.patch<{ updatedCount: number }>("/users/schedule/default", input);
   return data;
 }
 

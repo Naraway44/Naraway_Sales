@@ -12,6 +12,7 @@ import { assignmentRulesRouter } from "@/modules/assignmentRules/assignmentRules
 import { analyticsRouter } from "@/modules/analytics/analytics.controller";
 import { resourcesRouter } from "@/modules/resources/resources.controller";
 import { leadRequestsRouter } from "@/modules/leadRequests/leadRequests.controller";
+import { attendanceRouter } from "@/modules/attendance/attendance.controller";
 
 export function createApp() {
   const app = express();
@@ -40,6 +41,7 @@ export function createApp() {
   app.use("/api/v1/analytics", analyticsRouter);
   app.use("/api/v1/resources", resourcesRouter);
   app.use("/api/v1/lead-requests", leadRequestsRouter);
+  app.use("/api/v1/attendance", attendanceRouter);
 
   app.use(errorHandler);
 

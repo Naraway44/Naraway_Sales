@@ -40,6 +40,9 @@ export interface User {
   isActive: boolean;
   mustChangePassword: boolean;
   leadCapacity: number;
+  workStartTime: string;
+  workEndTime: string;
+  workDays: number[];
   createdAt: string;
 }
 

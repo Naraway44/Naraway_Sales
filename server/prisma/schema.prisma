@@ -78,6 +78,10 @@ model LeadRequest {
   resolvedById String? @map("resolved_by_id")
   resolvedBy   User?   @relation("LeadRequestResolvedBy", fields: [resolvedById], references: [id])
 
+  // True when the alerts sweep approved this itself (owner didn't act within the grace
+  // window) rather than a human clicking Approve — resolvedById stays null in that case.
+  autoApproved Boolean @default(false) @map("auto_approved")
+
   @@index([userId, status])
   @@map("lead_requests")
 }
@@ -154,6 +158,12 @@ model User {
   // gets those leads auto-redistributed rather than piling up further. Default is the
   // middle of the "48 to 88 leads, given only picked-up calls take real time" range.
   leadCapacity       Int       @default(60) @map("lead_capacity")
+  // Expected shift, "HH:MM" 24-hour, compared against session loginAt in server-local time
+  // (this app doesn't track per-user timezone — same assumption already made everywhere
+  // else dates are handled). workDays uses JS Date.getDay() convention: 0=Sun..6=Sat.
+  workStartTime      String    @default("09:00") @map("work_start_time")
+  workEndTime        String    @default("18:00") @map("work_end_time")
+  workDays           Int[]     @default([1, 2, 3, 4, 5]) @map("work_days")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

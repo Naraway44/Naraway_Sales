@@ -3,7 +3,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/common/prisma";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/common/errors/AppError";
 import { generateEmployeeId } from "./employeeId";
-import { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./users.schemas";
+import { BulkScheduleInput, CreateUserInput, ListUsersQuery, UpdateUserInput } from "./users.schemas";
 
 export class UsersService {
   /** Admin (Founder) sets the password directly here — no auto-generated temp password, no email invite. */
@@ -81,6 +81,22 @@ export class UsersService {
 
     const { passwordHash: _hash, ...safe } = user;
     return safe;
+  }
+
+  /** Sets one default shift/working-days pattern for every active rep in one action — the
+   *  starting point the Founder then tweaks per-person via the normal update() above for
+   *  teams that don't follow the org default (5-day vs 6/7-day teams etc). */
+  async applyDefaultSchedule(input: BulkScheduleInput, actorId: string) {
+    const result = await prisma.user.updateMany({
+      where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] } },
+      data: input,
+    });
+
+    await prisma.auditLog.create({
+      data: { actorId, action: "SCHEDULE_BULK_UPDATED", entityType: "User", entityId: "all" },
+    });
+
+    return { updatedCount: result.count };
   }
 
   /**

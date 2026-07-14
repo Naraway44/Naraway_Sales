@@ -1,6 +1,10 @@
+import { useState } from "react";
+import { startOfMonth } from "date-fns";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getMemberProfile } from "@/api/analytics";
+import { getUserAttendance } from "@/api/attendance";
+import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
 
@@ -47,6 +51,13 @@ export function MemberProfilePage() {
     queryFn: () => getMemberProfile(id!),
     enabled: !!id,
   });
+  const [attendanceMonth, setAttendanceMonth] = useState(() => startOfMonth(new Date()));
+  const monthParam = `${attendanceMonth.getFullYear()}-${String(attendanceMonth.getMonth() + 1).padStart(2, "0")}`;
+  const { data: attendanceDays, isLoading: attendanceLoading } = useQuery({
+    queryKey: ["user-attendance", id, monthParam],
+    queryFn: () => getUserAttendance(id!, monthParam),
+    enabled: !!id,
+  });
 
   if (isLoading) return <p className="text-muted-foreground">Loading profile...</p>;
   if (isError || !data) return <p className="text-destructive">Could not load this member's profile.</p>;
@@ -77,6 +88,13 @@ export function MemberProfilePage() {
       <p className="text-xs text-muted-foreground">
         Last login: {data.user.lastLoginAt ? new Date(data.user.lastLoginAt).toLocaleString() : "Never"}
       </p>
+
+      <AttendanceCalendar
+        month={attendanceMonth}
+        onMonthChange={setAttendanceMonth}
+        days={attendanceDays}
+        isLoading={attendanceLoading}
+      />
 
       <Card className="p-5">
         <h2 className="mb-3 text-sm font-semibold">Lead Performance</h2>

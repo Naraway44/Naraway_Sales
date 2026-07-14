@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createUser, deleteUser, listUsers, updateUser } from "@/api/users";
+import { applyDefaultSchedule, createUser, deleteUser, listUsers, updateUser } from "@/api/users";
 import { listTeams } from "@/api/lookups";
 import { Role } from "@/api/types";
 import { Button } from "@/components/Button";
@@ -9,10 +9,34 @@ import { Card } from "@/components/Card";
 import { Input, Label, Select } from "@/components/Input";
 import { Badge } from "@/components/Badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth";
+import { getErrorMessage } from "@/lib/errors";
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function DayToggles({ days, onToggle }: { days: number[]; onToggle: (day: number) => void }) {
+  return (
+    <div className="flex gap-0.5">
+      {DAY_LABELS.map((label, day) => (
+        <button
+          key={day}
+          type="button"
+          onClick={() => onToggle(day)}
+          className={`h-5 w-5 rounded text-[10px] font-medium ${
+            days.includes(day) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function UsersPage() {
   const qc = useQueryClient();
+  const { showToast } = useToast();
   const { user: currentUser } = useAuth();
   const canCreate = currentUser?.role === "FOUNDER";
   const canDelete = (targetRole: Role) => currentUser?.role === "FOUNDER" || targetRole === "EXECUTIVE";
@@ -30,6 +54,27 @@ export function UsersPage() {
   const capacityMutation = useMutation({
     mutationFn: ({ id, leadCapacity }: { id: string; leadCapacity: number }) => updateUser(id, { leadCapacity }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users-all"] }),
+  });
+  const scheduleMutation = useMutation({
+    mutationFn: ({ id, ...patch }: { id: string; workStartTime?: string; workEndTime?: string; workDays?: number[] }) =>
+      updateUser(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users-all"] }),
+    onError: (err) => showToast(getErrorMessage(err, "Could not update schedule."), "error"),
+  });
+
+  const [defaultSchedule, setDefaultSchedule] = useState({ workStartTime: "09:00", workEndTime: "18:00", workDays: [1, 2, 3, 4, 5] });
+  const [confirmBulkApply, setConfirmBulkApply] = useState(false);
+  const bulkScheduleMutation = useMutation({
+    mutationFn: () => applyDefaultSchedule(defaultSchedule),
+    onSuccess: (result) => {
+      setConfirmBulkApply(false);
+      qc.invalidateQueries({ queryKey: ["users-all"] });
+      showToast(`Default schedule applied to ${result.updatedCount} team member(s).`);
+    },
+    onError: (err) => {
+      setConfirmBulkApply(false);
+      showToast(getErrorMessage(err, "Could not apply default schedule."), "error");
+    },
   });
   const [form, setForm] = useState({
     name: "",
@@ -73,6 +118,7 @@ export function UsersPage() {
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Team</th>
               <th className="px-3 py-2">Capacity</th>
+              <th className="px-3 py-2">Schedule</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2"></th>
             </tr>
@@ -104,6 +150,42 @@ export function UsersPage() {
                     />
                   ) : (
                     u.leadCapacity
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  {canCreate && u.role !== "FOUNDER" ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="time"
+                          defaultValue={u.workStartTime}
+                          className="w-20 px-1.5 py-0.5 text-xs"
+                          onBlur={(e) => {
+                            if (e.target.value !== u.workStartTime) scheduleMutation.mutate({ id: u.id, workStartTime: e.target.value });
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">–</span>
+                        <Input
+                          type="time"
+                          defaultValue={u.workEndTime}
+                          className="w-20 px-1.5 py-0.5 text-xs"
+                          onBlur={(e) => {
+                            if (e.target.value !== u.workEndTime) scheduleMutation.mutate({ id: u.id, workEndTime: e.target.value });
+                          }}
+                        />
+                      </div>
+                      <DayToggles
+                        days={u.workDays}
+                        onToggle={(day) => {
+                          const next = u.workDays.includes(day) ? u.workDays.filter((d) => d !== day) : [...u.workDays, day];
+                          scheduleMutation.mutate({ id: u.id, workDays: next });
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {u.workStartTime}–{u.workEndTime}
+                    </span>
                   )}
                 </td>
                 <td className="px-3 py-2">
@@ -203,6 +285,58 @@ export function UsersPage() {
         )}
       </Card>
       )}
+
+      {canCreate && (
+        <Card className="col-span-3 p-5">
+          <h2 className="mb-1 text-sm font-semibold">Default Schedule</h2>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Sets the expected shift and working days for every Manager/Executive at once — individual rows above can
+            still be adjusted afterward for teams that don't follow the default (5-day vs 6/7-day teams, etc).
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <Label>Start</Label>
+              <Input
+                type="time"
+                value={defaultSchedule.workStartTime}
+                onChange={(e) => setDefaultSchedule({ ...defaultSchedule, workStartTime: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>End</Label>
+              <Input
+                type="time"
+                value={defaultSchedule.workEndTime}
+                onChange={(e) => setDefaultSchedule({ ...defaultSchedule, workEndTime: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Working Days</Label>
+              <DayToggles
+                days={defaultSchedule.workDays}
+                onToggle={(day) =>
+                  setDefaultSchedule((s) => ({
+                    ...s,
+                    workDays: s.workDays.includes(day) ? s.workDays.filter((d) => d !== day) : [...s.workDays, day],
+                  }))
+                }
+              />
+            </div>
+            <Button onClick={() => setConfirmBulkApply(true)} disabled={bulkScheduleMutation.isPending}>
+              Apply to All
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <ConfirmDialog
+        open={confirmBulkApply}
+        title="Apply this schedule to everyone?"
+        description="This overwrites the start/end time and working days for every Manager and Executive, including anyone who currently has a different individual schedule. This cannot be undone in one click — you'd need to re-edit each person."
+        confirmLabel={bulkScheduleMutation.isPending ? "Applying..." : "Apply to All"}
+        onCancel={() => setConfirmBulkApply(false)}
+        onConfirm={() => bulkScheduleMutation.mutate()}
+      />
 
       <ConfirmDialog
         open={!!deleteTarget}

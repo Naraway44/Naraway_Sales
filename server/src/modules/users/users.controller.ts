@@ -3,7 +3,7 @@ import { asyncHandler } from "@/common/middleware/asyncHandler";
 import { requireAuth, requirePasswordChanged, requireRole } from "@/common/middleware/auth";
 import { ValidationError } from "@/common/errors/AppError";
 import { usersService } from "./users.service";
-import { createUserSchema, listUsersQuerySchema, updateUserSchema } from "./users.schemas";
+import { bulkScheduleSchema, createUserSchema, listUsersQuerySchema, updateUserSchema } from "./users.schemas";
 
 export const usersRouter = Router();
 
@@ -29,6 +29,19 @@ usersRouter.get(
     if (!parsed.success) throw new ValidationError(parsed.error.flatten());
 
     const result = await usersService.list(parsed.data);
+    res.json(result);
+  })
+);
+
+// Must come before "/:id" — otherwise Express would match "schedule" as a user id.
+usersRouter.patch(
+  "/schedule/default",
+  requireRole("FOUNDER"),
+  asyncHandler(async (req, res) => {
+    const parsed = bulkScheduleSchema.safeParse(req.body);
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten());
+
+    const result = await usersService.applyDefaultSchedule(parsed.data, req.user!.id);
     res.json(result);
   })
 );

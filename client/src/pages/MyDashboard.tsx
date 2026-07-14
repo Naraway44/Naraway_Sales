@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { startOfMonth } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getMyOverview } from "@/api/analytics";
+import { getMyAttendance } from "@/api/attendance";
 import { createLeadRequest } from "@/api/leadRequests";
 import { STATUS_LABELS } from "@/api/types";
+import { AttendanceCalendar } from "@/components/AttendanceCalendar";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Textarea } from "@/components/Input";
@@ -27,6 +30,12 @@ export function MyDashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["analytics-me"], queryFn: getMyOverview });
   const [requestNote, setRequestNote] = useState("");
   const [requestOpen, setRequestOpen] = useState(false);
+  const [attendanceMonth, setAttendanceMonth] = useState(() => startOfMonth(new Date()));
+  const monthParam = `${attendanceMonth.getFullYear()}-${String(attendanceMonth.getMonth() + 1).padStart(2, "0")}`;
+  const { data: attendanceDays, isLoading: attendanceLoading } = useQuery({
+    queryKey: ["my-attendance", monthParam],
+    queryFn: () => getMyAttendance(monthParam),
+  });
 
   const requestMutation = useMutation({
     mutationFn: () => createLeadRequest(requestNote || undefined),
@@ -76,6 +85,13 @@ export function MyDashboardPage() {
           )}
         </div>
       </Card>
+
+      <AttendanceCalendar
+        month={attendanceMonth}
+        onMonthChange={setAttendanceMonth}
+        days={attendanceDays}
+        isLoading={attendanceLoading}
+      />
 
       {user?.role !== "FOUNDER" && (
         <Card className="p-5">

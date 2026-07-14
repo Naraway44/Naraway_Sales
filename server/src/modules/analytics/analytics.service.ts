@@ -4,7 +4,9 @@ import { NotFoundError } from "@/common/errors/AppError";
 import { AuthUser } from "@/common/middleware/auth";
 import { assignmentService } from "@/modules/assignment/assignment.service";
 import { authService } from "@/modules/auth/auth.service";
+import { leadRequestsService } from "@/modules/leadRequests/leadRequests.service";
 import { findStaleLeads } from "@/modules/leads/leadStaleness";
+import { getTodayLateOrAbsentReps } from "@/modules/attendance/attendance.service";
 
 export interface AlertItem {
   id: string;
@@ -469,6 +471,33 @@ export class AnalyticsService {
           title: `${closedCount} abandoned session(s) closed`,
           message: "No heartbeat for 8+ hours and never logged out — closed automatically.",
           link: { type: "self", id: user.id },
+        });
+      }
+
+      // Same piggyback: requests left pending too long (owner unavailable) get auto-approved,
+      // capped per day, so reps aren't blocked indefinitely — surfaced here rather than silent.
+      const { approvedCount } = await leadRequestsService.autoApproveStale();
+      if (approvedCount > 0) {
+        alerts.push({
+          id: `lead-requests-auto-approved-${now.getTime()}`,
+          severity: "warning",
+          title: `${approvedCount} lead request(s) auto-approved`,
+          message: "Pending 4+ hours with no untouched leads — approved automatically (capped at 5/day).",
+          link: { type: "self", id: user.id },
+        });
+      }
+
+      // Not a sweep — nothing to close or reassign, just surface it same-day instead of
+      // only being visible later in a monthly attendance review.
+      const lateReps = await getTodayLateOrAbsentReps();
+      const todayDateKey = now.toISOString().slice(0, 10);
+      for (const rep of lateReps) {
+        alerts.push({
+          id: `attendance-late-${rep.id}-${todayDateKey}`,
+          severity: rep.minutesLate >= 60 ? "critical" : "warning",
+          title: `${rep.name} hasn't logged in yet`,
+          message: `Expected by ${rep.expectedStart} — ${rep.minutesLate} min overdue.`,
+          link: { type: "user", id: rep.id },
         });
       }
     }

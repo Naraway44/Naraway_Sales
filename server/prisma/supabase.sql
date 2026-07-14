@@ -265,3 +265,15 @@ create table if not exists lead_requests (
   resolved_by_id text references users(id)
 );
 create index if not exists lead_requests_user_id_status_idx on lead_requests(user_id, status);
+
+-- 2026-07-14: attendance schedule — expected shift per person (owner-set, defaults to
+-- Mon-Fri 9-6), compared against actual UserSession.login_at to flag late/absent and
+-- power the attendance calendar. No new table: status is computed live from existing
+-- session rows, same pattern as the rest of the alerts/analytics system.
+alter table users add column if not exists work_start_time text not null default '09:00';
+alter table users add column if not exists work_end_time text not null default '18:00';
+alter table users add column if not exists work_days integer[] not null default '{1,2,3,4,5}';
+
+-- 2026-07-14: auto-approve lead requests left pending too long (owner unavailable) — capped
+-- per day and re-checked for eligibility at approval time, not just at request time.
+alter table lead_requests add column if not exists auto_approved boolean not null default false;

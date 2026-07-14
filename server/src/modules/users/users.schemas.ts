@@ -10,6 +10,9 @@ export const createUserSchema = z.object({
   leadCapacity: z.coerce.number().int().min(1).max(500).optional(),
 });
 
+const timeStringSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be HH:MM 24-hour");
+const workDaysSchema = z.array(z.number().int().min(0).max(6)).min(0).max(7);
+
 export const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   role: z.enum(["FOUNDER", "MANAGER", "EXECUTIVE"]).optional(),
@@ -18,7 +21,18 @@ export const updateUserSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").optional(),
   requirePasswordChange: z.boolean().optional(),
   leadCapacity: z.coerce.number().int().min(1).max(500).optional(),
+  workStartTime: timeStringSchema.optional(),
+  workEndTime: timeStringSchema.optional(),
+  workDays: workDaysSchema.optional(),
 });
+
+export const bulkScheduleSchema = z.object({
+  workStartTime: timeStringSchema,
+  workEndTime: timeStringSchema,
+  workDays: workDaysSchema,
+});
+
+export type BulkScheduleInput = z.infer<typeof bulkScheduleSchema>;
 
 export const listUsersQuerySchema = z.object({
   teamId: z.string().cuid().optional(),
