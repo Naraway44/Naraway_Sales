@@ -14,6 +14,12 @@ const HEARTBEAT_ACTIVE_GAP_SECONDS = 150;
 // silent gap in the active-time total.
 const IDLE_FLAG_THRESHOLD_MINUTES = 30;
 
+// A session with no heartbeat and no explicit logout for this long is treated as
+// abandoned (laptop died, browser crashed) and closed out proactively — otherwise it
+// would just sit "open" forever until the person happens to log in again, and the
+// trailing idle time between their last heartbeat and now would never get recorded.
+const ABANDONED_SESSION_HOURS = 8;
+
 function dateOnly(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -72,6 +78,51 @@ export class AuthService {
     }
 
     await prisma.userSession.update({ where: { id: sessionId }, data: { logoutAt: now } });
+  }
+
+  /**
+   * Sweeps sessions nobody ever explicitly logged out of and no heartbeat has touched in
+   * ABANDONED_SESSION_HOURS+ — a laptop that died or a browser that crashed mid-session.
+   * Left alone, that session would stay "open" forever (skewing anyone reading activeSeconds
+   * or "currently logged in" status) and the trailing gap between the last heartbeat and now
+   * would never become a reviewable IdleFlag, since only a future heartbeat or explicit
+   * logout ever runs that check. Piggybacked on the alerts poll like the stale-lead sweep,
+   * since there's no cron infrastructure on the free tier.
+   */
+  async closeAbandonedSessions(): Promise<{ closedCount: number }> {
+    const cutoff = new Date(Date.now() - ABANDONED_SESSION_HOURS * 60 * 60 * 1000);
+    const abandoned = await prisma.userSession.findMany({
+      where: {
+        logoutAt: null,
+        OR: [
+          { lastHeartbeatAt: { lt: cutoff } },
+          { lastHeartbeatAt: null, loginAt: { lt: cutoff } },
+        ],
+      },
+    });
+
+    const now = new Date();
+    for (const session of abandoned) {
+      const lastSeen = session.lastHeartbeatAt ?? session.loginAt;
+      const idleMinutes = (now.getTime() - lastSeen.getTime()) / 60_000;
+
+      if (idleMinutes >= IDLE_FLAG_THRESHOLD_MINUTES) {
+        await prisma.idleFlag.create({
+          data: {
+            userId: session.userId,
+            sessionId: session.id,
+            flagDate: dateOnly(lastSeen),
+            startedAt: lastSeen,
+            endedAt: now,
+            durationMinutes: Math.round(idleMinutes),
+          },
+        });
+      }
+
+      await prisma.userSession.update({ where: { id: session.id }, data: { logoutAt: lastSeen } });
+    }
+
+    return { closedCount: abandoned.length };
   }
 
   /**

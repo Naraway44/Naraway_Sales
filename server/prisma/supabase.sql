@@ -247,3 +247,21 @@ create index if not exists resources_category_service_id_idx on resources(catego
 -- when a closed lead frees up a rep's capacity.
 alter table users add column if not exists lead_capacity integer not null default 60;
 alter table leads add column if not exists owner_pinned_at timestamptz;
+
+-- 2026-07-14: "Request more leads" — a rep-initiated ask once they've worked through their
+-- current book (every open lead has at least one logged call attempt), gated behind
+-- Founder/Manager approval rather than an automatic top-up.
+do $$ begin
+  create type "LeadRequestStatus" as enum ('PENDING', 'APPROVED', 'DENIED');
+exception when duplicate_object then null; end $$;
+
+create table if not exists lead_requests (
+  id text primary key default gen_random_uuid()::text,
+  user_id text not null references users(id) on delete cascade,
+  status "LeadRequestStatus" not null default 'PENDING',
+  note text,
+  requested_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  resolved_by_id text references users(id)
+);
+create index if not exists lead_requests_user_id_status_idx on lead_requests(user_id, status);

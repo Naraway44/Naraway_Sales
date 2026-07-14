@@ -1,8 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getMyOverview } from "@/api/analytics";
+import { createLeadRequest } from "@/api/leadRequests";
 import { STATUS_LABELS } from "@/api/types";
+import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { Textarea } from "@/components/Input";
+import { useToast } from "@/components/Toast";
+import { useAuth } from "@/lib/auth";
+import { getErrorMessage } from "@/lib/errors";
 
 function StatCard({ label, value, sub, tone }: { label: string; value: string | number; sub?: string; tone?: "warn" | "default" }) {
   return (
@@ -15,7 +22,21 @@ function StatCard({ label, value, sub, tone }: { label: string; value: string | 
 }
 
 export function MyDashboardPage() {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const { data, isLoading } = useQuery({ queryKey: ["analytics-me"], queryFn: getMyOverview });
+  const [requestNote, setRequestNote] = useState("");
+  const [requestOpen, setRequestOpen] = useState(false);
+
+  const requestMutation = useMutation({
+    mutationFn: () => createLeadRequest(requestNote || undefined),
+    onSuccess: () => {
+      showToast("Request sent — your manager will review it.");
+      setRequestNote("");
+      setRequestOpen(false);
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not submit request."), "error"),
+  });
 
   if (isLoading) return <p className="text-muted-foreground">Loading your dashboard...</p>;
   if (!data) return <p className="text-destructive">Could not load your dashboard.</p>;
@@ -55,6 +76,42 @@ export function MyDashboardPage() {
           )}
         </div>
       </Card>
+
+      {user?.role !== "FOUNDER" && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Need more leads?</h2>
+              <p className="text-xs text-muted-foreground">
+                Once you've called through your current book, request a top-up — a manager will approve it.
+              </p>
+            </div>
+            {!requestOpen && (
+              <Button variant="secondary" onClick={() => setRequestOpen(true)}>
+                Request More Leads
+              </Button>
+            )}
+          </div>
+          {requestOpen && (
+            <div className="mt-3 space-y-2">
+              <Textarea
+                placeholder="Optional note for your manager..."
+                value={requestNote}
+                onChange={(e) => setRequestNote(e.target.value)}
+                rows={2}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setRequestOpen(false)} disabled={requestMutation.isPending}>
+                  Cancel
+                </Button>
+                <Button onClick={() => requestMutation.mutate()} disabled={requestMutation.isPending}>
+                  {requestMutation.isPending ? "Sending..." : "Send Request"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="flex justify-end">
         <Link to="/leads" className="text-sm text-primary underline">

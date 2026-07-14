@@ -55,6 +55,33 @@ enum ResourceCategory {
   CALL_SCRIPT
 }
 
+enum LeadRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+// A rep asking for more leads once they've worked through their current book — distinct
+// from the automatic capacity backfill (which fires silently on closing a lead). This one
+// needs a Founder/Manager to look and say yes, since it's the rep asserting readiness
+// rather than the system inferring it from a status change.
+model LeadRequest {
+  id     String            @id @default(cuid())
+  userId String            @map("user_id")
+  user   User              @relation("LeadRequestUser", fields: [userId], references: [id])
+  status LeadRequestStatus @default(PENDING)
+  note   String?
+
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  resolvedAt  DateTime? @map("resolved_at")
+
+  resolvedById String? @map("resolved_by_id")
+  resolvedBy   User?   @relation("LeadRequestResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([userId, status])
+  @@map("lead_requests")
+}
+
 model Team {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -133,14 +160,16 @@ model User {
   teamId String? @map("team_id")
   team   Team?   @relation(fields: [teamId], references: [id])
 
-  ownedLeads       Lead[]         @relation("LeadOwner")
-  createdLeads     Lead[]         @relation("LeadCreatedBy")
-  activities       LeadActivity[]
-  auditLogs        AuditLog[]
-  sessions         UserSession[]
-  leadViews        LeadView[]
-  idleFlags        IdleFlag[]
-  createdResources Resource[]     @relation("ResourceCreatedBy")
+  ownedLeads           Lead[]         @relation("LeadOwner")
+  createdLeads         Lead[]         @relation("LeadCreatedBy")
+  activities           LeadActivity[]
+  auditLogs            AuditLog[]
+  sessions             UserSession[]
+  leadViews            LeadView[]
+  idleFlags            IdleFlag[]
+  createdResources     Resource[]     @relation("ResourceCreatedBy")
+  leadRequests         LeadRequest[]  @relation("LeadRequestUser")
+  resolvedLeadRequests LeadRequest[]  @relation("LeadRequestResolvedBy")
 
   // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
   // shape of the round-robin assignment query (team + role + active), so one index

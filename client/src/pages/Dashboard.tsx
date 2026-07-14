@@ -1,7 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAnalyticsByUser, getAnalyticsOverview } from "@/api/analytics";
+import { listPendingLeadRequests, resolveLeadRequest } from "@/api/leadRequests";
 import { STATUS_LABELS } from "@/api/types";
+import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
+import { useToast } from "@/components/Toast";
+import { getErrorMessage } from "@/lib/errors";
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -14,12 +18,64 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 }
 
 export function DashboardPage() {
+  const qc = useQueryClient();
+  const { showToast } = useToast();
   const { data: overview } = useQuery({ queryKey: ["analytics-overview"], queryFn: getAnalyticsOverview });
   const { data: byUser } = useQuery({ queryKey: ["analytics-by-user"], queryFn: getAnalyticsByUser });
+  const { data: pendingRequests } = useQuery({ queryKey: ["lead-requests-pending"], queryFn: listPendingLeadRequests });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, approve }: { id: string; approve: boolean }) => resolveLeadRequest(id, approve),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["lead-requests-pending"] });
+      showToast(
+        result.request.status === "APPROVED"
+          ? `Approved — ${result.assignedCount} lead(s) assigned.`
+          : "Request denied."
+      );
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not resolve request."), "error"),
+  });
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Dashboard</h1>
+
+      {pendingRequests && pendingRequests.length > 0 && (
+        <Card className="p-5">
+          <h2 className="mb-3 text-sm font-semibold">Pending Lead Requests</h2>
+          <div className="space-y-2">
+            {pendingRequests.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded-md border border-border p-3">
+                <div>
+                  <div className="text-sm font-medium">
+                    {r.user?.name} <span className="font-mono text-xs text-muted-foreground">({r.user?.employeeId})</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Requested {new Date(r.requestedAt).toLocaleString()}
+                    {r.note ? ` — "${r.note}"` : ""}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => resolveMutation.mutate({ id: r.id, approve: false })}
+                    disabled={resolveMutation.isPending}
+                  >
+                    Deny
+                  </Button>
+                  <Button
+                    onClick={() => resolveMutation.mutate({ id: r.id, approve: true })}
+                    disabled={resolveMutation.isPending}
+                  >
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Total Leads" value={overview?.totalLeads ?? "-"} />

@@ -4,7 +4,7 @@ import { NotFoundError, ValidationError } from "@/common/errors/AppError";
 import { logActivity } from "@/modules/activities/activities.service";
 import { findStaleLeads } from "@/modules/leads/leadStaleness";
 
-const OPEN_STATUSES: LeadStatus[] = [
+export const OPEN_STATUSES: LeadStatus[] = [
   "NEW",
   "CONTACTED",
   "QUALIFIED",
@@ -110,14 +110,81 @@ export class AssignmentService {
    * admin having to manually redistribute every time someone closes something out.
    */
   async backfillIfCapacityFreed(ownerId: string, actorId?: string) {
+    await this.assignOneIfUnderCapacity(ownerId, actorId, "capacity freed up");
+  }
+
+  /**
+   * Fills a rep up to their full capacity from the unassigned pool in one batch — used when
+   * an admin approves a "request more leads" ask, since that's a deliberate top-up (often
+   * dozens of leads for a fresh rep), not just backfilling the one slot a closed lead freed.
+   * Deliberately NOT built on assignOneIfUnderCapacity: that helper does ~5 sequential
+   * round-trips per lead, which for a 60-capacity top-up against a pooled connection (5-slot
+   * limit) turns into minutes of blocking — this does the same work in a handful of queries
+   * total regardless of how many leads get assigned.
+   */
+  async topUpToCapacity(ownerId: string, actorId?: string): Promise<{ assignedCount: number }> {
     const owner = await prisma.user.findUnique({ where: { id: ownerId } });
-    if (!owner || !owner.isActive || !owner.teamId) return;
+    if (!owner || !owner.isActive || !owner.teamId) return { assignedCount: 0 };
 
     const now = new Date();
     const openCount = await prisma.lead.count({
       where: { ownerId, status: { in: OPEN_STATUSES }, ...notCurrentlyPinned(now) },
     });
-    if (openCount >= owner.leadCapacity) return;
+    const slotsFree = owner.leadCapacity - openCount;
+    if (slotsFree <= 0) return { assignedCount: 0 };
+
+    const rulesForTeam = await prisma.assignmentRule.findMany({ where: { teamId: owner.teamId } });
+    const serviceIds = rulesForTeam.map((r) => r.serviceId);
+
+    // Prefer leads whose service routes to this rep's team; fill any remaining slots from
+    // the general unassigned pool so a routing gap never leaves a rep needlessly short.
+    const routed =
+      serviceIds.length > 0
+        ? await prisma.lead.findMany({
+            where: { ownerId: null, serviceId: { in: serviceIds } },
+            orderBy: { createdAt: "asc" },
+            take: slotsFree,
+            select: { id: true },
+          })
+        : [];
+
+    const remaining = slotsFree - routed.length;
+    const fallback =
+      remaining > 0
+        ? await prisma.lead.findMany({
+            where: { ownerId: null, id: { notIn: routed.map((r) => r.id) } },
+            orderBy: { createdAt: "asc" },
+            take: remaining,
+            select: { id: true },
+          })
+        : [];
+
+    const leadIds = [...routed.map((r) => r.id), ...fallback.map((r) => r.id)];
+    if (leadIds.length === 0) return { assignedCount: 0 };
+
+    await prisma.lead.updateMany({ where: { id: { in: leadIds } }, data: { ownerId } });
+    await prisma.leadActivity.createMany({
+      data: leadIds.map((leadId) => ({
+        leadId,
+        userId: actorId ?? null,
+        action: ActivityAction.ASSIGNED,
+        notes: `Auto-assigned to ${owner.name} (${owner.employeeId}) — lead request approved`,
+      })),
+    });
+
+    return { assignedCount: leadIds.length };
+  }
+
+  /** Returns true if a lead was assigned, false if the rep is already at capacity or the pool is empty. */
+  private async assignOneIfUnderCapacity(ownerId: string, actorId: string | undefined, reason: string): Promise<boolean> {
+    const owner = await prisma.user.findUnique({ where: { id: ownerId } });
+    if (!owner || !owner.isActive || !owner.teamId) return false;
+
+    const now = new Date();
+    const openCount = await prisma.lead.count({
+      where: { ownerId, status: { in: OPEN_STATUSES }, ...notCurrentlyPinned(now) },
+    });
+    if (openCount >= owner.leadCapacity) return false;
 
     // Prefer an unassigned lead whose service routes to this rep's team; fall back to any
     // unassigned lead if none match (better than leaving a rep idle over a routing gap).
@@ -132,15 +199,16 @@ export class AssignmentService {
           })
         : null) ?? (await prisma.lead.findFirst({ where: { ownerId: null }, orderBy: { createdAt: "asc" } }));
 
-    if (!nextLead) return;
+    if (!nextLead) return false;
 
     await prisma.lead.update({ where: { id: nextLead.id }, data: { ownerId } });
     await logActivity({
       leadId: nextLead.id,
       userId: actorId ?? null,
       action: ActivityAction.ASSIGNED,
-      notes: `Auto-assigned to ${owner.name} (${owner.employeeId}) — capacity freed up`,
+      notes: `Auto-assigned to ${owner.name} (${owner.employeeId}) — ${reason}`,
     });
+    return true;
   }
 
   /**

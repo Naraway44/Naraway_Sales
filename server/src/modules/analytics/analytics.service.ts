@@ -3,6 +3,7 @@ import { prisma } from "@/common/prisma";
 import { NotFoundError } from "@/common/errors/AppError";
 import { AuthUser } from "@/common/middleware/auth";
 import { assignmentService } from "@/modules/assignment/assignment.service";
+import { authService } from "@/modules/auth/auth.service";
 import { findStaleLeads } from "@/modules/leads/leadStaleness";
 
 export interface AlertItem {
@@ -454,6 +455,19 @@ export class AnalyticsService {
           severity: "warning",
           title: `${reassignedCount} lead(s) auto-reassigned`,
           message: "Untouched 5+ days — moved to another rep on the same team automatically.",
+          link: { type: "self", id: user.id },
+        });
+      }
+
+      // Same piggyback: a session nobody logged out of (laptop died, browser crashed) would
+      // otherwise sit "open" forever and its trailing idle gap would never get recorded.
+      const { closedCount } = await authService.closeAbandonedSessions();
+      if (closedCount > 0) {
+        alerts.push({
+          id: `sessions-closed-${now.getTime()}`,
+          severity: "warning",
+          title: `${closedCount} abandoned session(s) closed`,
+          message: "No heartbeat for 8+ hours and never logged out — closed automatically.",
           link: { type: "self", id: user.id },
         });
       }
