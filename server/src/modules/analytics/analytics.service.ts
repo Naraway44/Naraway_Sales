@@ -282,6 +282,92 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Org-wide "worst offenders" for the Founder Dashboard — a flat worst-20 (oldest neglect
+   * first) plus two practical groupings: by rep (the 1:1/pay-review use case — who needs
+   * to be talked to) and by service (which vertical is falling behind as a whole), so
+   * triage doesn't require clicking into each person's profile one at a time.
+   */
+  async orgNeglectedLeads() {
+    const reps = await prisma.user.findMany({
+      where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] }, isActive: true },
+      select: { id: true, name: true, employeeId: true, team: { select: { name: true } } },
+    });
+    if (reps.length === 0) return { totalNeglected: 0, worst20: [], byOwner: [], byService: [] };
+
+    const repById = new Map(reps.map((r) => [r.id, r]));
+    const stale = await findStaleLeads({ ownerIds: reps.map((r) => r.id), statuses: NEGLECTED_STATUSES, days: 5 });
+
+    const serviceIds = [...new Set(stale.map((l) => l.serviceId).filter((id): id is string => !!id))];
+    const services = serviceIds.length > 0 ? await prisma.service.findMany({ where: { id: { in: serviceIds } } }) : [];
+    const serviceById = new Map(services.map((s) => [s.id, s.name]));
+
+    // findStaleLeads already orders oldest-first, so "worst" needs no re-sort.
+    const withDays = stale.map((l) => ({
+      ...l,
+      daysSinceUpdate: Math.floor((Date.now() - l.lastMeaningfulAt.getTime()) / 86_400_000),
+    }));
+
+    const worst20 = withDays.slice(0, 20).map((l) => ({
+      id: l.id,
+      companyName: l.companyName,
+      status: l.status,
+      daysSinceUpdate: l.daysSinceUpdate,
+      ownerId: l.ownerId,
+      ownerName: l.ownerId ? (repById.get(l.ownerId)?.name ?? "Unknown") : "Unassigned",
+      serviceId: l.serviceId,
+      serviceName: l.serviceId ? (serviceById.get(l.serviceId) ?? "Unknown") : "No service",
+    }));
+
+    const byOwnerMap = new Map<
+      string,
+      { ownerId: string; ownerName: string; employeeId: string; teamName: string | null; count: number; oldestDays: number }
+    >();
+    for (const l of withDays) {
+      if (!l.ownerId) continue;
+      const rep = repById.get(l.ownerId);
+      if (!rep) continue;
+      const existing = byOwnerMap.get(l.ownerId);
+      if (existing) {
+        existing.count++;
+        existing.oldestDays = Math.max(existing.oldestDays, l.daysSinceUpdate);
+      } else {
+        byOwnerMap.set(l.ownerId, {
+          ownerId: l.ownerId,
+          ownerName: rep.name,
+          employeeId: rep.employeeId,
+          teamName: rep.team?.name ?? null,
+          count: 1,
+          oldestDays: l.daysSinceUpdate,
+        });
+      }
+    }
+
+    const byServiceMap = new Map<string, { serviceId: string | null; serviceName: string; count: number; oldestDays: number }>();
+    for (const l of withDays) {
+      const key = l.serviceId ?? "none";
+      const existing = byServiceMap.get(key);
+      if (existing) {
+        existing.count++;
+        existing.oldestDays = Math.max(existing.oldestDays, l.daysSinceUpdate);
+      } else {
+        byServiceMap.set(key, {
+          serviceId: l.serviceId,
+          serviceName: l.serviceId ? (serviceById.get(l.serviceId) ?? "Unknown") : "No service",
+          count: 1,
+          oldestDays: l.daysSinceUpdate,
+        });
+      }
+    }
+
+    return {
+      totalNeglected: stale.length,
+      worst20,
+      byOwner: [...byOwnerMap.values()].sort((a, b) => b.count - a.count),
+      byService: [...byServiceMap.values()].sort((a, b) => b.count - a.count),
+    };
+  }
+
   /** Leads still open with no MEANINGFUL activity (call, status move, etc.) in `days`+. */
   private async neglectedLeads(ownerId: string, days = 5) {
     const leads = await findStaleLeads({ ownerIds: [ownerId], statuses: NEGLECTED_STATUSES, days });

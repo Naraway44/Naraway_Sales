@@ -117,3 +117,42 @@ export async function getMemberProfile(userId: string) {
   const { data } = await api.get<MemberProfile>(`/analytics/members/${userId}`);
   return data;
 }
+
+export interface OrgNeglectedLead {
+  id: string;
+  companyName: string;
+  status: LeadStatus;
+  daysSinceUpdate: number;
+  ownerId: string | null;
+  ownerName: string;
+  serviceId: string | null;
+  serviceName: string;
+}
+
+export interface OrgNeglectedByOwner {
+  ownerId: string;
+  ownerName: string;
+  employeeId: string;
+  teamName: string | null;
+  count: number;
+  oldestDays: number;
+}
+
+export interface OrgNeglectedByService {
+  serviceId: string | null;
+  serviceName: string;
+  count: number;
+  oldestDays: number;
+}
+
+export interface OrgNeglectedLeads {
+  totalNeglected: number;
+  worst20: OrgNeglectedLead[];
+  byOwner: OrgNeglectedByOwner[];
+  byService: OrgNeglectedByService[];
+}
+
+export async function getOrgNeglectedLeads() {
+  const { data } = await api.get<OrgNeglectedLeads>("/analytics/neglected-leads");
+  return data;
+}

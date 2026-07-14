@@ -1,11 +1,15 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAnalyticsByUser, getAnalyticsOverview } from "@/api/analytics";
+import { getAnalyticsByUser, getAnalyticsOverview, getOrgNeglectedLeads } from "@/api/analytics";
 import { listPendingLeadRequests, resolveLeadRequest } from "@/api/leadRequests";
 import { STATUS_LABELS } from "@/api/types";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { useToast } from "@/components/Toast";
 import { getErrorMessage } from "@/lib/errors";
+
+type NeglectedFilter = { type: "owner" | "service"; id: string } | null;
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -23,6 +27,15 @@ export function DashboardPage() {
   const { data: overview } = useQuery({ queryKey: ["analytics-overview"], queryFn: getAnalyticsOverview });
   const { data: byUser } = useQuery({ queryKey: ["analytics-by-user"], queryFn: getAnalyticsByUser });
   const { data: pendingRequests } = useQuery({ queryKey: ["lead-requests-pending"], queryFn: listPendingLeadRequests });
+  const { data: neglected } = useQuery({ queryKey: ["org-neglected-leads"], queryFn: getOrgNeglectedLeads });
+  const [neglectedFilter, setNeglectedFilter] = useState<NeglectedFilter>(null);
+
+  const filteredWorst20 =
+    neglected?.worst20.filter((l) => {
+      if (!neglectedFilter) return true;
+      if (neglectedFilter.type === "owner") return l.ownerId === neglectedFilter.id;
+      return l.serviceId === neglectedFilter.id;
+    }) ?? [];
 
   const resolveMutation = useMutation({
     mutationFn: ({ id, approve }: { id: string; approve: boolean }) => resolveLeadRequest(id, approve),
@@ -73,6 +86,91 @@ export function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {neglected && neglected.totalNeglected > 0 && (
+        <Card className="p-5">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-destructive">Neglected Leads — Org-wide</h2>
+            <span className="text-xs text-muted-foreground">{neglected.totalNeglected} total, untouched 5+ days</span>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Click a rep or service to filter the list below — click again to clear.
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">By Rep</h3>
+              <div className="space-y-1">
+                {neglected.byOwner.map((o) => {
+                  const active = neglectedFilter?.type === "owner" && neglectedFilter.id === o.ownerId;
+                  return (
+                    <button
+                      key={o.ownerId}
+                      onClick={() => setNeglectedFilter(active ? null : { type: "owner", id: o.ownerId })}
+                      className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${active ? "bg-muted" : ""}`}
+                    >
+                      <span>
+                        {o.ownerName} <span className="text-xs text-muted-foreground">({o.employeeId})</span>
+                      </span>
+                      <span className="text-xs font-medium text-destructive">
+                        {o.count} · oldest {o.oldestDays}d
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">By Service</h3>
+              <div className="space-y-1">
+                {neglected.byService.map((s) => {
+                  const key = s.serviceId ?? "none";
+                  const active = neglectedFilter?.type === "service" && neglectedFilter.id === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setNeglectedFilter(active ? null : { type: "service", id: key })}
+                      className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${active ? "bg-muted" : ""}`}
+                    >
+                      <span>{s.serviceName}</span>
+                      <span className="text-xs font-medium text-destructive">
+                        {s.count} · oldest {s.oldestDays}d
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+              Worst 20 (oldest first){neglectedFilter ? ` — filtered` : ""}
+            </h3>
+            <div className="space-y-1.5">
+              {filteredWorst20.map((l) => (
+                <Link
+                  key={l.id}
+                  to={`/leads/${l.id}`}
+                  className="flex items-center justify-between rounded-md bg-red-50 px-3 py-2 text-sm hover:bg-red-100"
+                >
+                  <span>
+                    {l.companyName}{" "}
+                    <span className="text-xs text-muted-foreground">
+                      — {l.ownerName} · {l.serviceName}
+                    </span>
+                  </span>
+                  <span className="text-xs text-destructive">{l.daysSinceUpdate}d</span>
+                </Link>
+              ))}
+              {filteredWorst20.length === 0 && (
+                <p className="text-sm text-muted-foreground">No leads match this filter.</p>
+              )}
+            </div>
           </div>
         </Card>
       )}

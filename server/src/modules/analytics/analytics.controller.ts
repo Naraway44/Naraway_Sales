@@ -15,6 +15,15 @@ analyticsRouter.get(
   })
 );
 
+/** Org-wide neglected-leads triage — worst 20 plus by-rep and by-service groupings. */
+analyticsRouter.get(
+  "/neglected-leads",
+  requireRole("FOUNDER", "MANAGER"),
+  asyncHandler(async (_req, res) => {
+    res.json(await analyticsService.orgNeglectedLeads());
+  })
+);
+
 analyticsRouter.get(
   "/by-user",
   requireRole("FOUNDER", "MANAGER"),
