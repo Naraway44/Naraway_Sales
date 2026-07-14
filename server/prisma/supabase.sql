@@ -241,3 +241,9 @@ create table if not exists resources (
   updated_at timestamptz not null default now()
 );
 create index if not exists resources_category_service_id_idx on resources(category, service_id);
+
+-- 2026-07-14: capacity-aware assignment engine — per-rep lead capacity, auto stale-lead
+-- redistribution, "save for myself" pin (auto-expires after 30 days), and auto-backfill
+-- when a closed lead frees up a rep's capacity.
+alter table users add column if not exists lead_capacity integer not null default 60;
+alter table leads add column if not exists owner_pinned_at timestamptz;
