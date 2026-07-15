@@ -227,7 +227,10 @@ drop table if exists lead_comments;
 -- 2026-07-14: Resources — shared message/email/call-script templates for the team,
 -- optionally scoped to a service. Founder/Manager write these, everyone can view/copy.
 do $$ begin
-  create type "ResourceCategory" as enum ('MESSAGE', 'EMAIL', 'CALL_SCRIPT');
+  create type "ResourceCategory" as enum (
+    'MESSAGE', 'EMAIL', 'CALL_SCRIPT', 'OBJECTION_HANDLING', 'WHATSAPP', 'SMS', 'FAQ',
+    'PRICING', 'PAYMENT_INFO'
+  );
 exception when duplicate_object then null; end $$;
 
 create table if not exists resources (
@@ -236,6 +239,7 @@ create table if not exists resources (
   body text not null,
   category "ResourceCategory" not null,
   service_id text references services(id),
+  file_url text,
   created_by_id text references users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -277,3 +281,28 @@ alter table users add column if not exists work_days integer[] not null default 
 -- 2026-07-14: auto-approve lead requests left pending too long (owner unavailable) — capped
 -- per day and re-checked for eligibility at approval time, not just at request time.
 alter table lead_requests add column if not exists auto_approved boolean not null default false;
+
+-- 2026-07-15: Sales Kit resource categories — Call Scripts, Objection Handling, Email,
+-- WhatsApp, SMS, FAQ, Pricing, and Payment Info (the last one rendered as one pinned card,
+-- not a searchable list item). MESSAGE stays a valid but unused enum value (Postgres can't
+-- cheaply drop enum values); fileUrl is a paste-a-link field (Drive/Dropbox), not real file
+-- storage.
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'OBJECTION_HANDLING';
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'WHATSAPP';
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'SMS';
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'FAQ';
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'PRICING';
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'PAYMENT_INFO';
+exception when duplicate_object then null; end $$;
+alter table resources add column if not exists file_url text;

@@ -50,9 +50,18 @@ enum CallOutcome {
 }
 
 enum ResourceCategory {
-  MESSAGE
-  EMAIL
   CALL_SCRIPT
+  OBJECTION_HANDLING
+  EMAIL
+  WHATSAPP
+  SMS
+  FAQ
+  PRICING
+  // Bank/payment sharing details — rendered as one pinned card on the Resources page,
+  // not a searchable/filterable list item like every other category. Same Founder/Manager
+  // write, everyone-can-view rule as the rest of Resources; visible to everyone since reps
+  // need to share it with clients when closing.
+  PAYMENT_INFO
 }
 
 enum LeadRequestStatus {
@@ -121,6 +130,10 @@ model Resource {
   category  ResourceCategory
   serviceId String?          @map("service_id")
   service   Service?         @relation(fields: [serviceId], references: [id])
+
+  // A link to a file hosted elsewhere (Drive, Dropbox, etc.) — deliberately not real file
+  // storage. Uploading/hosting stays the team's responsibility; the app just holds the link.
+  fileUrl String? @map("file_url")
 
   createdById String? @map("created_by_id")
   createdBy   User?   @relation("ResourceCreatedBy", fields: [createdById], references: [id])

@@ -8,6 +8,14 @@ export class ResourcesService {
       where: {
         ...(query.category ? { category: query.category } : {}),
         ...(query.serviceId ? { serviceId: query.serviceId } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { title: { contains: query.search, mode: "insensitive" } },
+                { body: { contains: query.search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
       },
       include: { service: true, createdBy: { select: { id: true, name: true, employeeId: true } } },
       orderBy: { createdAt: "desc" },
