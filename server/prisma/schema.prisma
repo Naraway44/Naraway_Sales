@@ -62,6 +62,9 @@ enum ResourceCategory {
   // write, everyone-can-view rule as the rest of Resources; visible to everyone since reps
   // need to share it with clients when closing.
   PAYMENT_INFO
+  // "What is Naraway / what do we offer" reference board — same pinned-card treatment as
+  // PAYMENT_INFO, always visible at the top rather than something to search for.
+  COMPANY_OVERVIEW
 }
 
 enum LeadRequestStatus {

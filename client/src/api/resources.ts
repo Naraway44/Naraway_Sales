@@ -1,8 +1,9 @@
 import { api } from "./client";
 import { Service } from "./types";
 
-// PAYMENT_INFO is deliberately excluded from this list — it's rendered as a single pinned
-// card on the Resources page, not a filterable/browsable category like the rest.
+// PAYMENT_INFO and COMPANY_OVERVIEW are deliberately excluded from this list — each is
+// rendered as its own single pinned card on the Resources page, not a filterable/browsable
+// category like the rest.
 export const RESOURCE_CATEGORIES = [
   "CALL_SCRIPT",
   "OBJECTION_HANDLING",
@@ -12,7 +13,7 @@ export const RESOURCE_CATEGORIES = [
   "FAQ",
   "PRICING",
 ] as const;
-export type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number] | "PAYMENT_INFO";
+export type ResourceCategory = (typeof RESOURCE_CATEGORIES)[number] | "PAYMENT_INFO" | "COMPANY_OVERVIEW";
 
 export const RESOURCE_CATEGORY_LABELS: Record<ResourceCategory, string> = {
   CALL_SCRIPT: "Sales Scripts",
@@ -23,6 +24,7 @@ export const RESOURCE_CATEGORY_LABELS: Record<ResourceCategory, string> = {
   FAQ: "FAQ",
   PRICING: "Pricing",
   PAYMENT_INFO: "Payment & Bank Details",
+  COMPANY_OVERVIEW: "About Naraway",
 };
 
 export interface Resource {

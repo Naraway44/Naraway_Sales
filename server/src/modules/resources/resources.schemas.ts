@@ -9,6 +9,7 @@ export const resourceCategoryEnum = z.enum([
   "FAQ",
   "PRICING",
   "PAYMENT_INFO",
+  "COMPANY_OVERVIEW",
 ]);
 
 export const createResourceSchema = z.object({

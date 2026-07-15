@@ -229,7 +229,7 @@ drop table if exists lead_comments;
 do $$ begin
   create type "ResourceCategory" as enum (
     'MESSAGE', 'EMAIL', 'CALL_SCRIPT', 'OBJECTION_HANDLING', 'WHATSAPP', 'SMS', 'FAQ',
-    'PRICING', 'PAYMENT_INFO'
+    'PRICING', 'PAYMENT_INFO', 'COMPANY_OVERVIEW'
   );
 exception when duplicate_object then null; end $$;
 
@@ -306,3 +306,9 @@ do $$ begin
   alter type "ResourceCategory" add value if not exists 'PAYMENT_INFO';
 exception when duplicate_object then null; end $$;
 alter table resources add column if not exists file_url text;
+
+-- 2026-07-15: "What is Naraway / what do we offer" reference board — same pinned-card
+-- treatment as PAYMENT_INFO, always visible rather than searched for.
+do $$ begin
+  alter type "ResourceCategory" add value if not exists 'COMPANY_OVERVIEW';
+exception when duplicate_object then null; end $$;
