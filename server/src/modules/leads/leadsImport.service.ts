@@ -2,9 +2,8 @@ import Papa from "papaparse";
 import ExcelJS from "exceljs";
 import { prisma } from "@/common/prisma";
 import { ActivityAction } from "@prisma/client";
-import { logActivity } from "@/modules/activities/activities.service";
 import { assignmentService } from "@/modules/assignment/assignment.service";
-import { createLeadSchema } from "./leads.schemas";
+import { createLeadSchema, CreateLeadInput } from "./leads.schemas";
 
 export const LEAD_IMPORT_FIELDS = [
   "companyName",
@@ -349,12 +348,17 @@ export async function previewImport(
  * snapshot from the preview step — so that if an import is interrupted (network drop,
  * browser refresh) and the admin simply re-runs it, already-inserted rows are silently
  * skipped instead of being created twice. Retrying an import is always safe.
+ *
+ * Validation/dedup happens entirely in memory first, then the actual writes go through in
+ * a handful of batched queries (createManyAndReturn + one activity createMany + a batched
+ * assignment pass) instead of looping one create+log+assign per row — a 500-row import
+ * doing ~9 sequential round trips per row was taking 10+ minutes; this does the same work
+ * in roughly a dozen queries total regardless of row count.
  */
 export async function confirmImport(
   rows: Record<string, string>[],
   createdById: string
 ) {
-  const created: string[] = [];
   const skipped: { rowNumber: number; reason: string }[] = [];
 
   const cleanedRows = rows.map((row) => cleanRow(row));
@@ -380,6 +384,7 @@ export async function confirmImport(
   const existingPhones = new Set(existing.map((e) => e.phone).filter(Boolean));
   const existingEmails = new Set(existing.map((e) => e.email).filter(Boolean));
 
+  const toCreate: CreateLeadInput[] = [];
   for (let i = 0; i < cleanedRows.length; i++) {
     const row = cleanedRows[i];
 
@@ -396,19 +401,30 @@ export async function confirmImport(
       continue;
     }
 
-    const lead = await prisma.lead.create({
-      data: { ...parsed.data, createdById },
-    });
-    await logActivity({ leadId: lead.id, userId: createdById, action: ActivityAction.IMPORTED });
-    await assignmentService.autoAssign(lead.id, createdById);
-    created.push(lead.id);
+    toCreate.push(parsed.data);
 
     // Mark as seen immediately so duplicate rows within the *same* file/batch also skip.
     if (row.phone) existingPhones.add(row.phone);
     if (row.email) existingEmails.add(row.email);
   }
 
-  return { createdCount: created.length, createdIds: created, skipped };
+  if (toCreate.length === 0) {
+    return { createdCount: 0, createdIds: [], skipped };
+  }
+
+  const createdLeads = await prisma.lead.createManyAndReturn({
+    data: toCreate.map((data) => ({ ...data, createdById })),
+    select: { id: true },
+  });
+  const createdIds = createdLeads.map((l) => l.id);
+
+  await prisma.leadActivity.createMany({
+    data: createdIds.map((leadId) => ({ leadId, userId: createdById, action: ActivityAction.IMPORTED })),
+  });
+
+  await assignmentService.bulkAutoAssign(createdIds, createdById);
+
+  return { createdCount: createdIds.length, createdIds, skipped };
 }
 
 export function leadsToCsv(leads: Array<Record<string, unknown>>): string {

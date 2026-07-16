@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
 import { listUsers } from "@/api/users";
-import { LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
+import { Lead, LeadStatus, Priority, LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -21,6 +21,27 @@ const CALL_OUTCOME_LABELS: Record<CallOutcome, string> = {
   WRONG_NUMBER: "Wrong Number",
 };
 
+function draftFromLead(l: Lead) {
+  return {
+    companyName: l.companyName ?? "",
+    contactPerson: l.contactPerson ?? "",
+    phone: l.phone ?? "",
+    email: l.email ?? "",
+    website: l.website ?? "",
+    industry: l.industry ?? "",
+    city: l.city ?? "",
+    state: l.state ?? "",
+    country: l.country ?? "",
+    expectedDealValue: l.expectedDealValue?.toString() ?? "",
+    probability: l.probability?.toString() ?? "",
+    expectedClosingDate: l.expectedClosingDate?.slice(0, 10) ?? "",
+    status: l.status,
+    priority: l.priority,
+    nextFollowUp: l.nextFollowUp?.slice(0, 10) ?? "",
+    notes: l.notes ?? "",
+  };
+}
+
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,15 +54,43 @@ export function LeadDetailPage() {
   const [callFollowUp, setCallFollowUp] = useState("");
   const outcomeNeedsRetry = callOutcome === "NO_ANSWER" || callOutcome === "VOICEMAIL" || callOutcome === "CALL_BACK_LATER";
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [draft, setDraft] = useState({ status: "NEW", priority: "MEDIUM", nextFollowUp: "", notes: "" });
+  const [draft, setDraft] = useState(draftFromLead({} as Lead));
   const canManage = user?.role === "FOUNDER" || user?.role === "MANAGER";
   const { data: lead, isLoading, isError, error } = useQuery({ queryKey: ["lead", id], queryFn: () => getLead(id!), enabled: !!id });
   const { data: activities } = useQuery({ queryKey: ["lead-activities", id], queryFn: () => getLeadActivities(id!), enabled: !!id });
   const { data: comments } = useQuery({ queryKey: ["lead-comments", id], queryFn: () => getLeadComments(id!), enabled: !!id });
   const { data: usersData } = useQuery({ queryKey: ["users-all"], queryFn: () => listUsers({ page: 1 }), enabled: canManage });
-  useEffect(() => { if (lead) setDraft({ status: lead.status, priority: lead.priority, nextFollowUp: lead.nextFollowUp?.slice(0, 10) ?? "", notes: lead.notes ?? "" }); }, [lead]);
+  useEffect(() => {
+    if (lead) setDraft(draftFromLead(lead));
+  }, [lead]);
 
-  const updateMutation = useMutation({ mutationFn: () => updateLead(id!, { ...draft, nextFollowUp: draft.nextFollowUp || null } as any), onSuccess: () => { qc.invalidateQueries({ queryKey: ["lead", id] }); qc.invalidateQueries({ queryKey: ["lead-activities", id] }); showToast("Lead changes saved."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not save lead changes."), "error") });
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateLead(id!, {
+        ...draft,
+        // Optional fields must go as null when cleared, not "" — email in particular fails
+        // format validation on an empty string, and null is what "no value" means everywhere
+        // else in this schema.
+        contactPerson: draft.contactPerson || null,
+        phone: draft.phone || null,
+        email: draft.email || null,
+        website: draft.website || null,
+        industry: draft.industry || null,
+        city: draft.city || null,
+        state: draft.state || null,
+        country: draft.country || null,
+        nextFollowUp: draft.nextFollowUp || null,
+        expectedClosingDate: draft.expectedClosingDate || null,
+        expectedDealValue: draft.expectedDealValue === "" ? null : Number(draft.expectedDealValue),
+        probability: draft.probability === "" ? null : Number(draft.probability),
+      } as any),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      qc.invalidateQueries({ queryKey: ["lead-activities", id] });
+      showToast("Lead changes saved.");
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not save lead changes."), "error"),
+  });
   const assignMutation = useMutation({ mutationFn: (ownerId: string) => assignLead(id!, ownerId), onSuccess: () => { qc.invalidateQueries({ queryKey: ["lead", id] }); qc.invalidateQueries({ queryKey: ["lead-activities", id] }); showToast("Lead owner updated."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not assign lead."), "error") });
   const commentMutation = useMutation({ mutationFn: (body: string) => addLeadComment(id!, body), onSuccess: () => { setComment(""); qc.invalidateQueries({ queryKey: ["lead-comments", id] }); showToast("Comment added."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not add comment."), "error") });
   const deleteMutation = useMutation({ mutationFn: () => deleteLead(id!), onSuccess: () => { showToast("Lead deleted."); navigate("/leads"); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not delete lead."), "error") });
@@ -68,7 +117,8 @@ export function LeadDetailPage() {
 
   if (isLoading) return <p className="text-muted-foreground">Loading lead...</p>;
   if (isError || !lead) return <p className="text-destructive">{getErrorMessage(error, "Could not load this lead.")}</p>;
-  const isDirty = draft.status !== lead.status || draft.priority !== lead.priority || draft.nextFollowUp !== (lead.nextFollowUp?.slice(0, 10) ?? "") || draft.notes !== (lead.notes ?? "");
+  const savedDraft = draftFromLead(lead);
+  const isDirty = (Object.keys(draft) as (keyof typeof draft)[]).some((key) => draft[key] !== savedDraft[key]);
   const isPinned = !!lead.ownerPinnedAt && Date.now() - new Date(lead.ownerPinnedAt).getTime() < 30 * 86_400_000;
 
   return <div className="grid gap-6 xl:grid-cols-3">
@@ -78,10 +128,25 @@ export function LeadDetailPage() {
           {isPinned ? "Saved by you" : "Save for myself"}
         </Button>
       )}</div></div>
-        <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"><Field label="Phone" value={lead.phone}/><Field label="Email" value={lead.email}/><Field label="Website" value={lead.website}/><Field label="Industry" value={lead.industry}/><Field label="City" value={lead.city}/><Field label="State" value={lead.state}/><Field label="Country" value={lead.country}/><Field label="Service" value={lead.service?.name}/><Field label="Source" value={lead.source?.name}/><Field label="Expected Deal Value" value={lead.expectedDealValue ? `INR ${lead.expectedDealValue}` : undefined}/><Field label="Probability" value={lead.probability !== null && lead.probability !== undefined ? `${lead.probability}%` : undefined}/><Field label="Expected Closing" value={lead.expectedClosingDate ? new Date(lead.expectedClosingDate).toLocaleDateString() : undefined}/></div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><Select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{LEAD_STATUSES.map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</Select></div><div><Label>Priority</Label><Select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value })}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></Select></div><div><Label>Next Follow-up</Label><Input type="date" value={draft.nextFollowUp} onChange={(event) => setDraft({ ...draft, nextFollowUp: event.target.value })}/></div></div>
+        <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <EditField label="Company Name" value={draft.companyName} onChange={(v) => setDraft({ ...draft, companyName: v })} />
+          <EditField label="Contact Person" value={draft.contactPerson} onChange={(v) => setDraft({ ...draft, contactPerson: v })} />
+          <EditField label="Phone" value={draft.phone} onChange={(v) => setDraft({ ...draft, phone: v })} />
+          <EditField label="Email" value={draft.email} onChange={(v) => setDraft({ ...draft, email: v })} type="email" />
+          <EditField label="Website" value={draft.website} onChange={(v) => setDraft({ ...draft, website: v })} />
+          <EditField label="Industry" value={draft.industry} onChange={(v) => setDraft({ ...draft, industry: v })} />
+          <EditField label="City" value={draft.city} onChange={(v) => setDraft({ ...draft, city: v })} />
+          <EditField label="State" value={draft.state} onChange={(v) => setDraft({ ...draft, state: v })} />
+          <EditField label="Country" value={draft.country} onChange={(v) => setDraft({ ...draft, country: v })} />
+          <Field label="Service" value={lead.service?.name} />
+          <Field label="Source" value={lead.source?.name} />
+          <EditField label="Expected Deal Value" value={draft.expectedDealValue} onChange={(v) => setDraft({ ...draft, expectedDealValue: v })} type="number" />
+          <EditField label="Probability (%)" value={draft.probability} onChange={(v) => setDraft({ ...draft, probability: v })} type="number" />
+          <EditField label="Expected Closing" value={draft.expectedClosingDate} onChange={(v) => setDraft({ ...draft, expectedClosingDate: v })} type="date" />
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><Select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as LeadStatus })}>{LEAD_STATUSES.map((item) => <option key={item} value={item}>{STATUS_LABELS[item]}</option>)}</Select></div><div><Label>Priority</Label><Select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as Priority })}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></Select></div><div><Label>Next Follow-up</Label><Input type="date" value={draft.nextFollowUp} onChange={(event) => setDraft({ ...draft, nextFollowUp: event.target.value })}/></div></div>
         <div className="mt-4"><Label>Notes</Label><Textarea rows={4} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })}/></div>
-        <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" disabled={!isDirty || updateMutation.isPending} onClick={() => setDraft({ status: lead.status, priority: lead.priority, nextFollowUp: lead.nextFollowUp?.slice(0, 10) ?? "", notes: lead.notes ?? "" })}>Discard</Button><Button disabled={!isDirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>{updateMutation.isPending ? "Saving..." : "Save changes"}</Button></div>
+        <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" disabled={!isDirty || updateMutation.isPending} onClick={() => setDraft(savedDraft)}>Discard</Button><Button disabled={!isDirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>{updateMutation.isPending ? "Saving..." : "Save changes"}</Button></div>
         {canManage && <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end"><div className="w-full sm:max-w-xs"><Label>Owner</Label><Select value={lead.ownerId ?? ""} onChange={(event) => event.target.value && assignMutation.mutate(event.target.value)} disabled={assignMutation.isPending}><option value="">Unassigned</option>{usersData?.items.filter((item) => item.role === "EXECUTIVE" && item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.employeeId})</option>)}</Select></div><Button variant="destructive" className="sm:ml-auto" onClick={() => setConfirmDelete(true)}>Delete lead</Button></div>}
       </Card>
       <Card className="p-4 sm:p-5">
@@ -113,3 +178,22 @@ export function LeadDetailPage() {
 }
 
 function Field({ label, value }: { label: string; value?: string | null }) { return <div><div className="text-xs text-muted-foreground">{label}</div><div className="break-words">{value || "-"}</div></div>; }
+
+function EditField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}

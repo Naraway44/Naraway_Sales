@@ -103,6 +103,104 @@ export class AssignmentService {
   }
 
   /**
+   * Batch equivalent of autoAssign for bulk import — calling autoAssign once per lead means
+   * ~7-8 sequential round trips per lead (team/executives/load lookups + the write), which
+   * turns importing a few hundred leads into a multi-minute operation. This resolves the
+   * service→team routing and each team's executives/current load ONCE per distinct team
+   * involved, then replays the exact same round-robin/capacity logic as nextRoundRobinUser
+   * entirely in memory across all leads for that team, and writes the results back in a
+   * handful of batched queries (grouped by resulting owner) instead of one per lead.
+   */
+  async bulkAutoAssign(leadIds: string[], actorId?: string): Promise<{ assignedCount: number }> {
+    if (leadIds.length === 0) return { assignedCount: 0 };
+
+    const leads = await prisma.lead.findMany({
+      where: { id: { in: leadIds }, serviceId: { not: null } },
+      select: { id: true, serviceId: true },
+    });
+    if (leads.length === 0) return { assignedCount: 0 };
+
+    const serviceIds = [...new Set(leads.map((l) => l.serviceId!))];
+    const rules = await prisma.assignmentRule.findMany({ where: { serviceId: { in: serviceIds } } });
+    const teamIdByServiceId = new Map(rules.map((r) => [r.serviceId, r.teamId]));
+
+    const leadIdsByTeam = new Map<string, string[]>();
+    for (const lead of leads) {
+      const teamId = teamIdByServiceId.get(lead.serviceId!);
+      if (!teamId) continue;
+      leadIdsByTeam.set(teamId, [...(leadIdsByTeam.get(teamId) ?? []), lead.id]);
+    }
+    if (leadIdsByTeam.size === 0) return { assignedCount: 0 };
+
+    const now = new Date();
+    const assignments: { leadId: string; ownerId: string; ownerName: string; ownerEmployeeId: string }[] = [];
+
+    for (const [teamId, teamLeadIds] of leadIdsByTeam.entries()) {
+      const team = await prisma.team.findUnique({ where: { id: teamId } });
+      if (!team) continue;
+
+      const executives = await prisma.user.findMany({
+        where: { teamId, role: Role.EXECUTIVE, isActive: true },
+        orderBy: { employeeId: "asc" },
+      });
+      if (executives.length === 0) continue;
+
+      const loadCounts = await prisma.lead.groupBy({
+        by: ["ownerId"],
+        where: { ownerId: { in: executives.map((e) => e.id) }, status: { in: OPEN_STATUSES }, ...notCurrentlyPinned(now) },
+        _count: { _all: true },
+      });
+      const loadByUserId = new Map(loadCounts.map((l) => [l.ownerId as string, l._count._all]));
+
+      // Mirrors nextRoundRobinUser exactly, just replayed across many leads against an
+      // in-memory load map/cursor instead of one DB round trip per lead.
+      let cursor = team.lastAssignedIdx;
+      for (const leadId of teamLeadIds) {
+        const underCapacity = executives.filter((e) => (loadByUserId.get(e.id) ?? 0) < e.leadCapacity);
+        const pool = underCapacity.length > 0 ? underCapacity : executives;
+
+        let owner: (typeof executives)[number];
+        if (underCapacity.length === 0) {
+          pool.sort((a, b) => (loadByUserId.get(a.id) ?? 0) - (loadByUserId.get(b.id) ?? 0));
+          owner = pool[0];
+        } else {
+          const nextIdx = cursor % pool.length;
+          owner = pool[nextIdx];
+          cursor = nextIdx + 1;
+        }
+
+        loadByUserId.set(owner.id, (loadByUserId.get(owner.id) ?? 0) + 1);
+        assignments.push({ leadId, ownerId: owner.id, ownerName: owner.name, ownerEmployeeId: owner.employeeId });
+      }
+
+      await prisma.team.update({ where: { id: teamId }, data: { lastAssignedIdx: cursor } });
+    }
+
+    if (assignments.length === 0) return { assignedCount: 0 };
+
+    const leadIdsByOwner = new Map<string, string[]>();
+    for (const a of assignments) {
+      leadIdsByOwner.set(a.ownerId, [...(leadIdsByOwner.get(a.ownerId) ?? []), a.leadId]);
+    }
+    await Promise.all(
+      [...leadIdsByOwner.entries()].map(([ownerId, ids]) =>
+        prisma.lead.updateMany({ where: { id: { in: ids } }, data: { ownerId } })
+      )
+    );
+
+    await prisma.leadActivity.createMany({
+      data: assignments.map((a) => ({
+        leadId: a.leadId,
+        userId: actorId ?? null,
+        action: ActivityAction.ASSIGNED,
+        notes: `Auto-assigned to ${a.ownerName} (${a.ownerEmployeeId}) via service routing rule`,
+      })),
+    });
+
+    return { assignedCount: assignments.length };
+  }
+
+  /**
    * Called after a lead moves to a closed status (Won/Lost) — that lead just stopped
    * counting toward its owner's capacity, so if they're now under capacity and there's a
    * backlog of unassigned leads waiting, hand them one automatically instead of leaving

@@ -8,6 +8,28 @@ import { leadRequestsService } from "@/modules/leadRequests/leadRequests.service
 import { findStaleLeads } from "@/modules/leads/leadStaleness";
 import { getTodayLateOrAbsentReps } from "@/modules/attendance/attendance.service";
 
+// The three sweeps below (stale-lead reassignment, abandoned-session cleanup, lead-request
+// auto-approve) used to re-run on every single Founder/Manager's ~60s alert poll. With more
+// than one admin logged in at once — or just many requests in flight under real load — that
+// multiplies the same expensive work redundantly. Throttled to run at most once globally per
+// interval, and the three run concurrently (they touch disjoint rows: owned-and-stale leads,
+// sessions, and unassigned leads respectively) rather than one after another.
+const SWEEP_THROTTLE_MS = 30_000;
+let lastSweepAt = 0;
+
+async function runSweepsIfDue() {
+  const now = Date.now();
+  if (now - lastSweepAt < SWEEP_THROTTLE_MS) return null;
+  lastSweepAt = now;
+
+  const [reassign, sessions, autoApprove] = await Promise.all([
+    assignmentService.reassignStaleLeads(),
+    authService.closeAbandonedSessions(),
+    leadRequestsService.autoApproveStale(),
+  ]);
+  return { reassignedCount: reassign.reassignedCount, closedCount: sessions.closedCount, approvedCount: autoApprove.approvedCount };
+}
+
 export interface AlertItem {
   id: string;
   severity: "warning" | "critical";
@@ -531,43 +553,48 @@ export class AnalyticsService {
     const now = new Date();
     const isOrgWide = user.role === "FOUNDER" || user.role === "MANAGER";
     const alerts: AlertItem[] = [];
+    const repScope = isOrgWide ? {} : { id: user.id };
 
-    // Founder/Manager poll this every ~60s while the app is open — piggyback the stale-lead
-    // redistribution sweep here instead of a cron job, so leads actually get moved to
-    // someone else, not just flagged for a human to reassign by hand.
+    // Founder/Manager poll this every ~60s while the app is open — piggyback the sweeps
+    // here instead of a cron job, so leads/sessions/requests actually get handled, not just
+    // flagged for a human to act on by hand. Throttled globally (see runSweepsIfDue) so
+    // multiple admins polling concurrently don't each re-trigger the same expensive work.
+    // The sweep, the late-rep check, and the rep list are independent of each other — run
+    // concurrently rather than as separate sequential round trips, since each one adds
+    // latency that stacks up under real load.
+    const [sweep, lateReps, reps] = await Promise.all([
+      isOrgWide ? runSweepsIfDue() : Promise.resolve(null),
+      isOrgWide ? getTodayLateOrAbsentReps() : Promise.resolve([]),
+      prisma.user.findMany({
+        where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] }, isActive: true, ...repScope },
+        select: { id: true, name: true, employeeId: true },
+      }),
+    ]);
+
     if (isOrgWide) {
-      const { reassignedCount } = await assignmentService.reassignStaleLeads();
-      if (reassignedCount > 0) {
+      if (sweep && sweep.reassignedCount > 0) {
         alerts.push({
           id: `auto-reassigned-${now.getTime()}`,
           severity: "warning",
-          title: `${reassignedCount} lead(s) auto-reassigned`,
+          title: `${sweep.reassignedCount} lead(s) auto-reassigned`,
           message: "Untouched 5+ days — moved to another rep on the same team automatically.",
           link: { type: "self", id: user.id },
         });
       }
-
-      // Same piggyback: a session nobody logged out of (laptop died, browser crashed) would
-      // otherwise sit "open" forever and its trailing idle gap would never get recorded.
-      const { closedCount } = await authService.closeAbandonedSessions();
-      if (closedCount > 0) {
+      if (sweep && sweep.closedCount > 0) {
         alerts.push({
           id: `sessions-closed-${now.getTime()}`,
           severity: "warning",
-          title: `${closedCount} abandoned session(s) closed`,
+          title: `${sweep.closedCount} abandoned session(s) closed`,
           message: "No heartbeat for 8+ hours and never logged out — closed automatically.",
           link: { type: "self", id: user.id },
         });
       }
-
-      // Same piggyback: requests left pending too long (owner unavailable) get auto-approved,
-      // capped per day, so reps aren't blocked indefinitely — surfaced here rather than silent.
-      const { approvedCount } = await leadRequestsService.autoApproveStale();
-      if (approvedCount > 0) {
+      if (sweep && sweep.approvedCount > 0) {
         alerts.push({
           id: `lead-requests-auto-approved-${now.getTime()}`,
           severity: "warning",
-          title: `${approvedCount} lead request(s) auto-approved`,
+          title: `${sweep.approvedCount} lead request(s) auto-approved`,
           message: "Pending 4+ hours with no untouched leads — approved automatically (capped at 5/day).",
           link: { type: "self", id: user.id },
         });
@@ -575,7 +602,6 @@ export class AnalyticsService {
 
       // Not a sweep — nothing to close or reassign, just surface it same-day instead of
       // only being visible later in a monthly attendance review.
-      const lateReps = await getTodayLateOrAbsentReps();
       const todayDateKey = now.toISOString().slice(0, 10);
       for (const rep of lateReps) {
         alerts.push({
@@ -589,12 +615,6 @@ export class AnalyticsService {
     }
 
     const linkTo = (userId: string): AlertItem["link"] => ({ type: isOrgWide ? "user" : "self", id: userId });
-
-    const repScope = isOrgWide ? {} : { id: user.id };
-    const reps = await prisma.user.findMany({
-      where: { role: { in: [Role.EXECUTIVE, Role.MANAGER] }, isActive: true, ...repScope },
-      select: { id: true, name: true, employeeId: true },
-    });
     if (reps.length === 0) return alerts;
     const repIds = reps.map((r) => r.id);
     const repById = new Map(reps.map((r) => [r.id, r]));

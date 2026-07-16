@@ -23,7 +23,11 @@ export function createApp() {
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 500,
+      // Per-IP, not global — was fine for a handful of test users, but an office where
+      // several reps share one public IP could realistically stack heartbeats (60s) +
+      // alert polling (60s) + normal CRUD across multiple people against the same budget.
+      // Raised for headroom now that the team's scaling to ~100 people.
+      max: 2000,
       standardHeaders: true,
       legacyHeaders: false,
     })
