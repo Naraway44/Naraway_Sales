@@ -64,7 +64,13 @@ export const bulkAssignSchema = z.object({
   ownerId: z.string().cuid(),
 });
 
+export const routeLeadSchema = z.object({
+  targetServiceId: z.string().cuid(),
+  note: z.string().optional(),
+});
+
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type ListLeadsQuery = z.infer<typeof listLeadsQuerySchema>;
 export type BulkAssignInput = z.infer<typeof bulkAssignSchema>;
+export type RouteLeadInput = z.infer<typeof routeLeadSchema>;

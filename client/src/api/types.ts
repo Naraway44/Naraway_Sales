@@ -75,6 +75,11 @@ export interface Lead {
   ownerPinnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  // Cross-routing: other services this client has already been offered (won or lost that
+  // service too), and — if this lead itself was spawned by routing another one — a pointer
+  // back to the original.
+  convertedToLeads?: { id: string; serviceId: string | null; status: LeadStatus; service: { name: string } | null }[];
+  convertedFromLead?: { id: string; companyName: string; serviceId: string | null; service: { name: string } | null } | null;
 }
 
 export interface LeadActivity {

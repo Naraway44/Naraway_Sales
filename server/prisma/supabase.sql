@@ -32,7 +32,8 @@ exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type "ActivityAction" as enum (
-    'CREATED', 'ASSIGNED', 'REASSIGNED', 'STATUS_CHANGED', 'FIELD_UPDATED', 'IMPORTED'
+    'CREATED', 'ASSIGNED', 'REASSIGNED', 'STATUS_CHANGED', 'FIELD_UPDATED', 'IMPORTED',
+    'CALLED', 'CROSS_ROUTED'
   );
 exception when duplicate_object then null; end $$;
 
@@ -101,6 +102,8 @@ create table if not exists leads (
   last_contact_at       timestamptz,
   next_follow_up        timestamptz,
   created_by_id         text references users(id),
+  -- Set when this lead was spawned by routing a Won/Lost lead to a different service.
+  converted_from_lead_id text references leads(id),
   -- Team comments as a jsonb array (each entry: {id, userId, userName, employeeId, body,
   -- createdAt}), appended atomically via `comments || jsonb` rather than a separate table.
   comments              jsonb not null default '[]'::jsonb,
@@ -114,6 +117,7 @@ create index if not exists leads_phone_idx on leads(phone);
 create index if not exists leads_email_idx on leads(email);
 create index if not exists leads_state_idx on leads(state);
 create index if not exists leads_city_idx on leads(city);
+create index if not exists leads_converted_from_lead_id_idx on leads(converted_from_lead_id);
 
 -- ---------- lead_activities ----------
 create table if not exists lead_activities (
@@ -312,3 +316,12 @@ alter table resources add column if not exists file_url text;
 do $$ begin
   alter type "ResourceCategory" add value if not exists 'COMPANY_OVERVIEW';
 exception when duplicate_object then null; end $$;
+
+-- 2026-07-17: cross-service routing — a Won/Lost lead can spawn a new opportunity for a
+-- different service (cross-sell after a win, or "try another service" after a loss).
+-- converted_from_lead_id points the new lead back at the original.
+do $$ begin
+  alter type "ActivityAction" add value if not exists 'CROSS_ROUTED';
+exception when duplicate_object then null; end $$;
+alter table leads add column if not exists converted_from_lead_id text references leads(id);
+create index if not exists leads_converted_from_lead_id_idx on leads(converted_from_lead_id);

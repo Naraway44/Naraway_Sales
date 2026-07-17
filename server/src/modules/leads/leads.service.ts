@@ -1,6 +1,6 @@
 import { ActivityAction, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/common/prisma";
-import { NotFoundError } from "@/common/errors/AppError";
+import { NotFoundError, ValidationError } from "@/common/errors/AppError";
 import { logActivity } from "@/modules/activities/activities.service";
 import { assignmentService } from "@/modules/assignment/assignment.service";
 import { AuthUser } from "@/common/middleware/auth";
@@ -74,6 +74,15 @@ export class LeadsService {
         service: true,
         source: true,
         createdBy: { select: { id: true, name: true, employeeId: true } },
+        // Powers the upsell/cross-sell checklist: which other services this client has
+        // already been offered (and whether that went anywhere), and — if this lead was
+        // itself spawned by routing another one — a link back to that original.
+        convertedToLeads: {
+          select: { id: true, serviceId: true, status: true, service: { select: { name: true } } },
+        },
+        convertedFromLead: {
+          select: { id: true, companyName: true, serviceId: true, service: { select: { name: true } } },
+        },
       },
     });
     if (!lead) throw new NotFoundError("Lead");
@@ -179,6 +188,63 @@ export class LeadsService {
     }
 
     await prisma.lead.update({ where: { id }, data });
+  }
+
+  /**
+   * A Won lead is an upsell candidate (they already trust one team, worth checking if
+   * another service fits too); a Lost lead is worth trying a different angle rather than
+   * writing the relationship off entirely. Either way, this creates a fresh lead for the
+   * target service — carrying over contact details, auto-assigned through the normal
+   * routing rule/round-robin like any new lead — and links it back to the original so the
+   * "which services has this client already been offered" checklist can be built from it.
+   * Doesn't touch the original lead's own status; it's just a pointer to a new opportunity.
+   */
+  async routeToService(user: AuthUser, id: string, targetServiceId: string, note: string | undefined) {
+    const original = await this.getById(user, id);
+    if (original.status !== "WON" && original.status !== "LOST") {
+      throw new ValidationError("Can only route a lead to another service once it's Won or Lost.");
+    }
+    if (original.serviceId === targetServiceId) {
+      throw new ValidationError("Pick a different service than the one this lead already has.");
+    }
+    const alreadyOffered = await prisma.lead.findFirst({
+      where: { convertedFromLeadId: id, serviceId: targetServiceId },
+    });
+    if (alreadyOffered) {
+      throw new ValidationError("This service has already been offered for this lead.");
+    }
+
+    const newLead = await prisma.lead.create({
+      data: {
+        companyName: original.companyName,
+        contactPerson: original.contactPerson,
+        phone: original.phone,
+        email: original.email,
+        website: original.website,
+        industry: original.industry,
+        city: original.city,
+        state: original.state,
+        country: original.country,
+        sourceId: original.sourceId,
+        serviceId: targetServiceId,
+        notes: note ?? null,
+        createdById: user.id,
+        convertedFromLeadId: original.id,
+      },
+    });
+
+    const originNote = `Routed from "${original.companyName}" (${original.status === "WON" ? "won" : "lost"} on a different service) as a new opportunity`;
+    await logActivity({ leadId: newLead.id, userId: user.id, action: ActivityAction.CREATED, notes: originNote });
+    await logActivity({
+      leadId: original.id,
+      userId: user.id,
+      action: ActivityAction.CROSS_ROUTED,
+      notes: `Offered as a new opportunity for a different service (lead ${newLead.id})`,
+    });
+
+    await assignmentService.autoAssign(newLead.id, user.id);
+
+    return newLead;
   }
 }
 

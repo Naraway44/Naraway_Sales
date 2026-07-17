@@ -39,6 +39,9 @@ enum ActivityAction {
   FIELD_UPDATED
   IMPORTED
   CALLED
+  // A Won/Lost lead spawned a new opportunity for a different service (cross-sell after a
+  // win, or "try another service" after a loss) — logged on both the original and new lead.
+  CROSS_ROUTED
 }
 
 enum CallOutcome {
@@ -289,6 +292,13 @@ model Lead {
 
   createdById String? @map("created_by_id")
   createdBy   User?   @relation("LeadCreatedBy", fields: [createdById], references: [id])
+
+  // Set when this lead was spawned by routing a Won/Lost lead to a different service
+  // (cross-sell after a win, or "try another service" after a loss) — points back at the
+  // original. A lead can spawn several of these (one per service it gets routed to).
+  convertedFromLeadId String? @map("converted_from_lead_id")
+  convertedFromLead   Lead?   @relation("LeadConversion", fields: [convertedFromLeadId], references: [id])
+  convertedToLeads    Lead[]  @relation("LeadConversion")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

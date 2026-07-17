@@ -52,6 +52,12 @@ export async function bulkAssignLeads(leadIds: string[], ownerId: string) {
   return data;
 }
 
+/** Won/Lost only — offers this client a different service as a new, auto-assigned lead. */
+export async function routeLeadToService(id: string, targetServiceId: string, note?: string) {
+  const { data } = await api.post<Lead>(`/leads/${id}/route`, { targetServiceId, note });
+  return data;
+}
+
 export async function getLeadActivities(id: string) {
   const { data } = await api.get<LeadActivity[]>(`/leads/${id}/activities`);
   return data;

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
+import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, routeLeadToService, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
+import { listServices } from "@/api/lookups";
 import { listUsers } from "@/api/users";
 import { Lead, LeadStatus, Priority, LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
 import { Badge } from "@/components/Badge";
@@ -60,9 +61,19 @@ export function LeadDetailPage() {
   const { data: activities } = useQuery({ queryKey: ["lead-activities", id], queryFn: () => getLeadActivities(id!), enabled: !!id });
   const { data: comments } = useQuery({ queryKey: ["lead-comments", id], queryFn: () => getLeadComments(id!), enabled: !!id });
   const { data: usersData } = useQuery({ queryKey: ["users-all"], queryFn: () => listUsers({ page: 1 }), enabled: canManage });
+  const { data: services } = useQuery({ queryKey: ["services"], queryFn: listServices });
   useEffect(() => {
     if (lead) setDraft(draftFromLead(lead));
   }, [lead]);
+
+  const routeMutation = useMutation({
+    mutationFn: (targetServiceId: string) => routeLeadToService(id!, targetServiceId),
+    onSuccess: (newLead) => {
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+      showToast(`New opportunity created for ${newLead.service?.name ?? "that service"}.`);
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not route to that service."), "error"),
+  });
 
   const updateMutation = useMutation({
     mutationFn: () =>
@@ -149,6 +160,20 @@ export function LeadDetailPage() {
         <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" disabled={!isDirty || updateMutation.isPending} onClick={() => setDraft(savedDraft)}>Discard</Button><Button disabled={!isDirty || updateMutation.isPending} onClick={() => updateMutation.mutate()}>{updateMutation.isPending ? "Saving..." : "Save changes"}</Button></div>
         {canManage && <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end"><div className="w-full sm:max-w-xs"><Label>Owner</Label><Select value={lead.ownerId ?? ""} onChange={(event) => event.target.value && assignMutation.mutate(event.target.value)} disabled={assignMutation.isPending}><option value="">Unassigned</option>{usersData?.items.filter((item) => item.role === "EXECUTIVE" && item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.employeeId})</option>)}</Select></div><Button variant="destructive" className="sm:ml-auto" onClick={() => setConfirmDelete(true)}>Delete lead</Button></div>}
       </Card>
+
+      {lead.convertedFromLead && (
+        <p className="text-xs text-muted-foreground">
+          ↳ Routed from{" "}
+          <Link to={`/leads/${lead.convertedFromLead.id}`} className="text-primary underline">
+            {lead.convertedFromLead.companyName} ({lead.convertedFromLead.service?.name ?? "no service"})
+          </Link>
+        </p>
+      )}
+
+      {(lead.status === "WON" || lead.status === "LOST") && (
+        <CrossSellCard lead={lead} services={services} onOffer={(serviceId) => routeMutation.mutate(serviceId)} isPending={routeMutation.isPending} />
+      )}
+
       <Card className="p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold">Log a Call</h2>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -195,5 +220,74 @@ function EditField({
       <Label>{label}</Label>
       <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
+  );
+}
+
+const CROSS_SELL_STATUS_COLORS: Record<string, string> = {
+  WON: "bg-green-100 text-green-700",
+  LOST: "bg-red-100 text-red-700",
+};
+
+/**
+ * Won → warm cross-sell (they already trust and paid you); Lost → a colder, more
+ * speculative retry with a different angle. Shown as a checklist of every other service:
+ * untried (offer it), or already offered (linked, color-coded by how that one went). No
+ * separate "exhausted" state — once every service has an entry, the checklist just runs
+ * out of untried rows on its own, and adding a new service later makes it offerable again
+ * everywhere automatically.
+ */
+function CrossSellCard({
+  lead,
+  services,
+  onOffer,
+  isPending,
+}: {
+  lead: Lead;
+  services?: { id: string; name: string }[];
+  onOffer: (serviceId: string) => void;
+  isPending: boolean;
+}) {
+  const otherServices = (services ?? []).filter((s) => s.id !== lead.serviceId);
+  const declinedCount = (lead.convertedToLeads ?? []).filter((c) => c.status === "LOST").length;
+
+  if (otherServices.length === 0) return null;
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <h2 className="mb-1 text-sm font-semibold">
+        {lead.status === "WON" ? "Cross-Sell Opportunities" : "Try Another Service"}
+      </h2>
+      <p className="mb-3 text-xs text-muted-foreground">
+        {lead.status === "WON"
+          ? "This client already trusts and paid you — worth checking if another service fits too."
+          : "They said no to this one — doesn't mean they'd say no to everything."}
+      </p>
+      {declinedCount >= 2 && (
+        <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          This client has declined {declinedCount} services already — consider pausing further outreach.
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {otherServices.map((service) => {
+          const existing = lead.convertedToLeads?.find((c) => c.serviceId === service.id);
+          return (
+            <div key={service.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+              <span>{service.name}</span>
+              {existing ? (
+                <Link to={`/leads/${existing.id}`}>
+                  <Badge className={CROSS_SELL_STATUS_COLORS[existing.status] ?? "bg-blue-100 text-blue-700"}>
+                    {existing.status === "WON" || existing.status === "LOST" ? existing.status : "In Progress"}
+                  </Badge>
+                </Link>
+              ) : (
+                <Button variant="secondary" onClick={() => onOffer(service.id)} disabled={isPending}>
+                  Offer {service.name}
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

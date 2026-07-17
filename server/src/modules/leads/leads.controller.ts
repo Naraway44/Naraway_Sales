@@ -8,6 +8,7 @@ import {
   bulkAssignSchema,
   createLeadSchema,
   listLeadsQuerySchema,
+  routeLeadSchema,
   updateLeadSchema,
 } from "./leads.schemas";
 import { assignmentService } from "@/modules/assignment/assignment.service";
@@ -130,6 +131,18 @@ leadsRouter.delete(
   asyncHandler(async (req, res) => {
     await leadsService.delete(req.params.id);
     res.status(204).send();
+  })
+);
+
+/** Won/Lost only — offers this client a different service as a new, auto-assigned lead. */
+leadsRouter.post(
+  "/:id/route",
+  asyncHandler(async (req, res) => {
+    const parsed = routeLeadSchema.safeParse(req.body);
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten());
+    res
+      .status(201)
+      .json(await leadsService.routeToService(req.user!, req.params.id, parsed.data.targetServiceId, parsed.data.note));
   })
 );
 
