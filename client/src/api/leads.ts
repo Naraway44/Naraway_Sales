@@ -10,6 +10,8 @@ export interface LeadListParams {
   sourceId?: string;
   state?: string;
   unassigned?: boolean;
+  createdFrom?: string;
+  createdTo?: string;
   page?: number;
   pageSize?: number;
   sortBy?: string;

@@ -25,6 +25,15 @@ export class LeadsService {
       ...(query.sourceId ? { sourceId: query.sourceId } : {}),
       ...(query.state ? { state: query.state } : {}),
       ...(query.unassigned ? { ownerId: null } : {}),
+      ...(query.createdFrom || query.createdTo
+        ? {
+            createdAt: {
+              ...(query.createdFrom ? { gte: query.createdFrom } : {}),
+              // Treat createdTo as inclusive of that whole day, not just midnight.
+              ...(query.createdTo ? { lte: new Date(query.createdTo.getTime() + 86_400_000 - 1) } : {}),
+            },
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
