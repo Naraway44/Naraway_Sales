@@ -42,6 +42,8 @@ enum ActivityAction {
   // A Won/Lost lead spawned a new opportunity for a different service (cross-sell after a
   // win, or "try another service" after a loss) — logged on both the original and new lead.
   CROSS_ROUTED
+  // Founder/Manager approved a Lost lead for resale on the marketplace platform.
+  RELEASED_TO_MARKETPLACE
 }
 
 enum CallOutcome {
@@ -74,6 +76,12 @@ enum LeadRequestStatus {
   PENDING
   APPROVED
   DENIED
+}
+
+enum MarketplaceLeadStatus {
+  LISTED
+  PENDING
+  SOLD
 }
 
 // A rep asking for more leads once they've worked through their current book — distinct
@@ -199,6 +207,8 @@ model User {
   createdResources     Resource[]     @relation("ResourceCreatedBy")
   leadRequests         LeadRequest[]  @relation("LeadRequestUser")
   resolvedLeadRequests LeadRequest[]  @relation("LeadRequestResolvedBy")
+  createdBuyers            Buyer[]           @relation("BuyerCreatedBy")
+  approvedMarketplaceLeads MarketplaceLead[] @relation("MarketplaceLeadApprovedBy")
 
   // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
   // shape of the round-robin assignment query (team + role + active), so one index
@@ -277,6 +287,12 @@ model Lead {
   // receiving fresh ones. After 30 days it automatically returns to the normal pool
   // (re-eligible for reassignment/capacity) — no expiry job needed, just a date check.
   ownerPinnedAt DateTime? @map("owner_pinned_at")
+
+  // Set when a Founder/Manager releases this Lost lead to the resale marketplace — lets
+  // Sales OS staff see at a glance it's already been sent there, same pattern as
+  // ownerPinnedAt. The actual resale record lives entirely in MarketplaceLead; this is
+  // just a marker on the original.
+  releasedToMarketplaceAt DateTime? @map("released_to_marketplace_at")
 
   priority Priority   @default(MEDIUM)
   status   LeadStatus @default(NEW)
@@ -381,4 +397,81 @@ model AuditLog {
   timestamp  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+// A buyer on the lead resale marketplace — completely separate identity from internal
+// User accounts. Created only by Founder/Manager (no public signup). currentSessionToken
+// enforces "single, not shareable, only one person" access: a fresh login overwrites it,
+// so a shared password just repeatedly logs the other device out rather than granting
+// simultaneous access.
+model Buyer {
+  id                  String   @id @default(cuid())
+  name                String
+  company             String?
+  email               String   @unique
+  phone               String?
+  passwordHash        String   @map("password_hash")
+  currentSessionToken String?  @map("current_session_token")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdById         String   @map("created_by_id")
+  createdBy           User     @relation("BuyerCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  purchasedLeads MarketplaceLead[]
+
+  @@map("buyers")
+}
+
+// A copy of a Lost lead's resale-safe fields, created the moment Founder/Manager releases
+// it to the marketplace. Deliberately a separate table from Lead — buyer-facing code only
+// ever queries this model, never Lead or User, so there is no code path (not even a bug)
+// that can expose internal Sales OS data to a buyer. A lead is sold at most once in its
+// lifetime (exclusive, never recycled after its 2-month window), so purchase fields live
+// directly on this row instead of a separate order/purchase table. resaleStatus flow:
+// LISTED -> PENDING (claimed mid-checkout) -> SOLD (payment confirmed), or PENDING ->
+// LISTED again if the checkout is abandoned (see releaseAbandonedCheckouts).
+model MarketplaceLead {
+  id             String  @id @default(cuid())
+  originalLeadId String  @map("original_lead_id")
+  companyName    String  @map("company_name")
+  contactPerson  String? @map("contact_person")
+  phone          String?
+  email          String?
+  industry       String?
+  city           String?
+  state          String?
+  service        String?
+  lostReason     String? @map("lost_reason")
+
+  expectedDealValue Decimal? @map("expected_deal_value") @db.Decimal(14, 2)
+
+  resaleStatus MarketplaceLeadStatus @default(LISTED) @map("resale_status")
+
+  approvedById String   @map("approved_by_id")
+  approvedBy   User     @relation("MarketplaceLeadApprovedBy", fields: [approvedById], references: [id])
+  // Founder/Manager can override the standard volume-tier price for a specific lead at
+  // approval time (a lead lost on budget/timing is worth more than one lost because the
+  // company shut down) — the flat rate card can't capture that variance on its own.
+  overridePrice Decimal? @map("override_price") @db.Decimal(10, 2)
+  listedAt      DateTime @default(now()) @map("listed_at")
+
+  buyerId           String?   @map("buyer_id")
+  buyer             Buyer?    @relation(fields: [buyerId], references: [id])
+  pricePaid         Decimal?  @map("price_paid") @db.Decimal(10, 2)
+  checkoutStartedAt DateTime? @map("checkout_started_at")
+  purchasedAt       DateTime? @map("purchased_at")
+  // 2 months from purchase. Display/audit field only — expired leads are never re-listed
+  // or recycled, so nothing reads this to gate availability.
+  exclusiveUntil    DateTime? @map("exclusive_until")
+  gatewayOrderId    String?   @map("gateway_order_id")
+  gatewayPaymentId  String?   @map("gateway_payment_id")
+
+  @@index([resaleStatus, listedAt])
+  @@index([service])
+  @@index([industry])
+  @@index([city])
+  @@index([state])
+  @@index([gatewayOrderId])
+  @@index([buyerId])
+  @@map("marketplace_leads")
 }

@@ -325,3 +325,62 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 alter table leads add column if not exists converted_from_lead_id text references leads(id);
 create index if not exists leads_converted_from_lead_id_idx on leads(converted_from_lead_id);
+
+-- 2026-07-23: lead resale marketplace — buyers and marketplace_leads are a deliberately
+-- separate pair of tables. Buyer-facing code only ever queries these two; the internal
+-- Lead/User tables are never touched by marketplace routes. A lead is sold at most once
+-- (exclusive, 2-month window, never recycled), so purchase fields live directly on
+-- marketplace_leads rather than a separate order table.
+do $$ begin
+  create type "MarketplaceLeadStatus" as enum ('LISTED', 'PENDING', 'SOLD');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter type "ActivityAction" add value if not exists 'RELEASED_TO_MARKETPLACE';
+exception when duplicate_object then null; end $$;
+alter table leads add column if not exists released_to_marketplace_at timestamptz;
+
+create table if not exists buyers (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  company text,
+  email text not null unique,
+  phone text,
+  password_hash text not null,
+  current_session_token text,
+  is_active boolean not null default true,
+  created_by_id text not null references users(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists marketplace_leads (
+  id text primary key default gen_random_uuid()::text,
+  original_lead_id text not null,
+  company_name text not null,
+  contact_person text,
+  phone text,
+  email text,
+  industry text,
+  city text,
+  state text,
+  service text,
+  lost_reason text,
+  expected_deal_value decimal(14,2),
+  resale_status "MarketplaceLeadStatus" not null default 'LISTED',
+  approved_by_id text not null references users(id),
+  override_price decimal(10,2),
+  listed_at timestamptz not null default now(),
+  buyer_id text references buyers(id),
+  price_paid decimal(10,2),
+  checkout_started_at timestamptz,
+  purchased_at timestamptz,
+  exclusive_until timestamptz,
+  gateway_order_id text,
+  gateway_payment_id text
+);
+create index if not exists marketplace_leads_status_listed_idx on marketplace_leads(resale_status, listed_at);
+create index if not exists marketplace_leads_service_idx on marketplace_leads(service);
+create index if not exists marketplace_leads_industry_idx on marketplace_leads(industry);
+create index if not exists marketplace_leads_city_idx on marketplace_leads(city);
+create index if not exists marketplace_leads_state_idx on marketplace_leads(state);
+create index if not exists marketplace_leads_gateway_order_idx on marketplace_leads(gateway_order_id);
+create index if not exists marketplace_leads_buyer_idx on marketplace_leads(buyer_id);

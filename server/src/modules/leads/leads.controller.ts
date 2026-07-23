@@ -15,6 +15,7 @@ import { assignmentService } from "@/modules/assignment/assignment.service";
 import { listActivities } from "@/modules/activities/activities.service";
 import { commentsService } from "@/modules/comments/comments.service";
 import { confirmImport, leadsToCsv, parseSpreadsheet, previewImport } from "./leadsImport.service";
+import { releaseLead } from "@/modules/marketplace/curation.service";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -219,5 +220,14 @@ leadsRouter.post(
   asyncHandler(async (req, res) => {
     const { pinned } = req.body as { pinned: boolean };
     res.json(await leadsService.setPinned(req.user!, req.params.id, !!pinned));
+  })
+);
+
+leadsRouter.post(
+  "/:id/release-to-marketplace",
+  requireRole("FOUNDER", "MANAGER"),
+  asyncHandler(async (req, res) => {
+    const { overridePrice } = req.body as { overridePrice?: number };
+    res.status(201).json(await releaseLead(req.user!, req.params.id, overridePrice));
   })
 );

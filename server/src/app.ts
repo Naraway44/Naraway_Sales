@@ -13,13 +13,27 @@ import { analyticsRouter } from "@/modules/analytics/analytics.controller";
 import { resourcesRouter } from "@/modules/resources/resources.controller";
 import { leadRequestsRouter } from "@/modules/leadRequests/leadRequests.controller";
 import { attendanceRouter } from "@/modules/attendance/attendance.controller";
+import { buyerAuthRouter } from "@/modules/buyerAuth/buyerAuth.controller";
+import { buyersRouter } from "@/modules/buyers/buyers.controller";
+import { marketplaceRouter } from "@/modules/marketplace/marketplace.controller";
 
 export function createApp() {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.corsOrigin, credentials: true }));
-  app.use(express.json({ limit: "5mb" }));
+  app.use(cors({ origin: env.corsOrigins, credentials: true }));
+  app.use(
+    express.json({
+      limit: "5mb",
+      // Captures the raw request body alongside the parsed one, so the Razorpay webhook
+      // handler can verify its HMAC signature against the exact bytes Razorpay signed —
+      // signature verification breaks if it runs against a re-serialized JSON object
+      // instead of the original wire bytes.
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+      },
+    })
+  );
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
@@ -46,6 +60,9 @@ export function createApp() {
   app.use("/api/v1/resources", resourcesRouter);
   app.use("/api/v1/lead-requests", leadRequestsRouter);
   app.use("/api/v1/attendance", attendanceRouter);
+  app.use("/api/v1/buyer-auth", buyerAuthRouter);
+  app.use("/api/v1/buyers", buyersRouter);
+  app.use("/api/v1/marketplace", marketplaceRouter);
 
   app.use(errorHandler);
 

@@ -16,6 +16,8 @@ export class TestWorld {
   serviceIds: string[] = [];
   ruleIds: string[] = [];
   leadRequestIds: string[] = [];
+  buyerIds: string[] = [];
+  marketplaceLeadIds: string[] = [];
 
   private tag = randomUUID().slice(0, 8);
 
@@ -104,6 +106,53 @@ export class TestWorld {
     this.leadRequestIds.push(id);
   }
 
+  trackBuyer(id: string) {
+    this.buyerIds.push(id);
+  }
+
+  trackMarketplaceLead(id: string) {
+    this.marketplaceLeadIds.push(id);
+  }
+
+  async buyer(opts: { createdById: string; isActive?: boolean } = { createdById: "" }) {
+    const suffix = randomUUID().slice(0, 8);
+    const passwordHash = await bcrypt.hash("TestPass123!", 4);
+    const buyer = await prisma.buyer.create({
+      data: {
+        name: `Test Buyer ${suffix}`,
+        email: `${this.tag}-buyer-${suffix}@test.local`,
+        passwordHash,
+        isActive: opts.isActive ?? true,
+        createdById: opts.createdById,
+      },
+    });
+    this.buyerIds.push(buyer.id);
+    return buyer;
+  }
+
+  async marketplaceLead(opts: {
+    approvedById: string;
+    resaleStatus?: "LISTED" | "PENDING" | "SOLD";
+    buyerId?: string | null;
+    overridePrice?: number | null;
+    listedAt?: Date;
+  }) {
+    const suffix = randomUUID().slice(0, 8);
+    const marketplaceLead = await prisma.marketplaceLead.create({
+      data: {
+        originalLeadId: `test-original-${suffix}`,
+        companyName: `Test Marketplace Co ${suffix}`,
+        approvedById: opts.approvedById,
+        resaleStatus: opts.resaleStatus ?? "LISTED",
+        buyerId: opts.buyerId ?? null,
+        overridePrice: opts.overridePrice ?? null,
+        ...(opts.listedAt ? { listedAt: opts.listedAt } : {}),
+      },
+    });
+    this.marketplaceLeadIds.push(marketplaceLead.id);
+    return marketplaceLead;
+  }
+
   /** Backdates a lead's most recent meaningful activity by inserting a CREATED row with an
    *  explicit timestamp — findStaleLeads reads from lead_activities, not just createdAt. */
   async backdateActivity(leadId: string, timestamp: Date) {
@@ -113,6 +162,12 @@ export class TestWorld {
   }
 
   async cleanup() {
+    if (this.marketplaceLeadIds.length) {
+      await prisma.marketplaceLead.deleteMany({ where: { id: { in: this.marketplaceLeadIds } } });
+    }
+    if (this.buyerIds.length) {
+      await prisma.buyer.deleteMany({ where: { id: { in: this.buyerIds } } });
+    }
     if (this.leadRequestIds.length) {
       await prisma.leadRequest.deleteMany({ where: { id: { in: this.leadRequestIds } } });
     }

@@ -73,6 +73,7 @@ export interface Lead {
   lastContactAt?: string | null;
   nextFollowUp?: string | null;
   ownerPinnedAt?: string | null;
+  releasedToMarketplaceAt?: string | null;
   createdAt: string;
   updatedAt: string;
   // Cross-routing: other services this client has already been offered (won or lost that

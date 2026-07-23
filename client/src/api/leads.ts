@@ -86,6 +86,12 @@ export async function setLeadPinned(id: string, pinned: boolean) {
   return data;
 }
 
+/** Founder/Manager only — copies a Lost lead into the marketplace for buyers to purchase. */
+export async function releaseLeadToMarketplace(id: string, overridePrice?: number) {
+  const { data } = await api.post(`/leads/${id}/release-to-marketplace`, { overridePrice });
+  return data;
+}
+
 export async function exportLeads(params: LeadListParams) {
   const response = await api.get("/leads/export", { params, responseType: "blob" });
   const url = URL.createObjectURL(response.data);

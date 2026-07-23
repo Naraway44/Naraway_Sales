@@ -14,6 +14,7 @@ import { UsersPage } from "@/pages/Users";
 import { MemberProfilePage } from "@/pages/MemberProfile";
 import { SettingsPage } from "@/pages/Settings";
 import { ResourcesPage } from "@/pages/Resources";
+import { BuyersPage } from "@/pages/Buyers";
 import { ToastProvider } from "@/components/Toast";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ function App() {
                 <Route element={<ProtectedRoute roles={["FOUNDER", "MANAGER"]} />}>
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/users/:id" element={<MemberProfilePage />} />
+                  <Route path="/buyers" element={<BuyersPage />} />
                 </Route>
 
                 <Route element={<ProtectedRoute roles={["FOUNDER"]} />}>

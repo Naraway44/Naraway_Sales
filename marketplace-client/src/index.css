@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 24% 98%;
+    --foreground: 222 28% 14%;
+    --card: 0 0% 100%;
+    --border: 214 20% 90%;
+    --muted: 210 23% 95%;
+    --muted-foreground: 218 12% 42%;
+    --accent: 174 64% 34%;
+    --accent-foreground: 0 0% 100%;
+    --primary: 174 64% 34%;
+    --primary-foreground: 0 0% 100%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+}

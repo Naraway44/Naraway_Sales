@@ -15,6 +15,7 @@ export function Layout() {
     { to: "/leads", label: "Leads", roles: ["FOUNDER", "MANAGER", "EXECUTIVE"] },
     { to: "/resources", label: "Resources", roles: ["FOUNDER", "MANAGER", "EXECUTIVE"] },
     { to: "/users", label: "Team", roles: ["FOUNDER", "MANAGER"] },
+    { to: "/buyers", label: "Marketplace Buyers", roles: ["FOUNDER", "MANAGER"] },
     { to: "/settings", label: "Settings", roles: ["FOUNDER"] },
   ];
 

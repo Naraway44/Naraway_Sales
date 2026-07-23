@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, routeLeadToService, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
+import { addLeadComment, assignLead, deleteLead, getLead, getLeadActivities, getLeadComments, logCall, releaseLeadToMarketplace, routeLeadToService, setLeadPinned, updateLead, CALL_OUTCOMES, CallOutcome } from "@/api/leads";
 import { listServices } from "@/api/lookups";
 import { listUsers } from "@/api/users";
 import { Lead, LeadStatus, Priority, LEAD_STATUSES, PRIORITY_COLORS, STATUS_COLORS, STATUS_LABELS } from "@/api/types";
@@ -73,6 +73,18 @@ export function LeadDetailPage() {
       showToast(`New opportunity created for ${newLead.service?.name ?? "that service"}.`);
     },
     onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not route to that service."), "error"),
+  });
+
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [overridePrice, setOverridePrice] = useState("");
+  const releaseMutation = useMutation({
+    mutationFn: () => releaseLeadToMarketplace(id!, overridePrice ? Number(overridePrice) : undefined),
+    onSuccess: () => {
+      showToast("Lead released to the marketplace");
+      setShowReleaseModal(false);
+      qc.invalidateQueries({ queryKey: ["lead", id] });
+    },
+    onError: (mutationError) => showToast(getErrorMessage(mutationError), "error"),
   });
 
   const updateMutation = useMutation({
