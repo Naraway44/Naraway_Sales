@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "@/common/env";
 import { prisma } from "@/common/prisma";
 import { UnauthorizedError } from "@/common/errors/AppError";
+import { asyncHandler } from "@/common/middleware/asyncHandler";
 
 export interface BuyerAuthPayload {
   buyerId: string;
@@ -26,8 +27,14 @@ export function signBuyerToken(payload: BuyerAuthPayload): string {
 
 /** Verifies the JWT, then checks the embedded sessionToken still matches the Buyer row's
  *  currentSessionToken — a newer login elsewhere overwrites that column, so this is what
- *  actually enforces "single session" rather than just being a stateless JWT check. */
-export async function requireBuyerAuth(req: Request, _res: Response, next: NextFunction) {
+ *  actually enforces "single session" rather than just being a stateless JWT check.
+ *
+ *  Wrapped in asyncHandler: this is an async function used directly as Express middleware,
+ *  and Express 4 does not await middleware or catch rejected promises on its own. Without
+ *  this wrapper, every throw here (missing header, expired token, invalidated session —
+ *  all routine, expected cases) became an unhandled promise rejection that crashed the
+ *  entire Node process, taking down both apps sharing this backend. */
+export const requireBuyerAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     throw new UnauthorizedError("Missing or malformed Authorization header");
@@ -48,4 +55,4 @@ export async function requireBuyerAuth(req: Request, _res: Response, next: NextF
 
   req.buyer = payload;
   next();
-}
+});
