@@ -19,12 +19,25 @@ export interface MarketplaceFilters {
   dateListedTo?: string;
 }
 
+export interface TeaserLead {
+  id: string;
+  companyName: string;
+  industry?: string | null;
+  city?: string | null;
+  state?: string | null;
+  service?: string | null;
+  lostReason?: string | null;
+  expectedDealValue?: string | null;
+  listedAt: string;
+}
+
 export interface SearchResult {
   availableCount: number;
   requestedQuantity: number;
   deliverableQuantity: number;
   pricePerLead: number;
   estimatedTotal: number;
+  items: TeaserLead[];
 }
 
 export interface CheckoutResult {

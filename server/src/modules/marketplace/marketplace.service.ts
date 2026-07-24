@@ -66,7 +66,28 @@ export class MarketplaceService {
       ...filterWhere(query),
     };
 
-    const availableCount = await prisma.marketplaceLead.count({ where });
+    const [availableCount, items] = await Promise.all([
+      prisma.marketplaceLead.count({ where }),
+      // Teaser fields only — company identity and context, never phone/email/contactPerson.
+      // Capped at 25 for display; the actual purchase still pulls from the full matching
+      // pool via createCheckout, not just these rows.
+      prisma.marketplaceLead.findMany({
+        where,
+        orderBy: { listedAt: "asc" },
+        take: 25,
+        select: {
+          id: true,
+          companyName: true,
+          industry: true,
+          city: true,
+          state: true,
+          service: true,
+          lostReason: true,
+          expectedDealValue: true,
+          listedAt: true,
+        },
+      }),
+    ]);
     const deliverable = Math.min(query.quantity, availableCount);
     const pricePerLead = deliverable > 0 ? priceForQuantity(deliverable) : 0;
 
@@ -76,6 +97,7 @@ export class MarketplaceService {
       deliverableQuantity: deliverable,
       pricePerLead,
       estimatedTotal: pricePerLead * deliverable,
+      items,
     };
   }
 
