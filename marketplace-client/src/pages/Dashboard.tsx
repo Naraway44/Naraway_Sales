@@ -17,7 +17,12 @@ export function DashboardPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Leads</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Leads you've purchased — exclusive to you for 2 months from purchase.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Leads you've purchased — exclusive to you for 2 months from purchase.{" "}
+            <a href="mailto:support@naraway.com" className="text-primary hover:underline">
+              Report an issue with a lead
+            </a>
+          </p>
         </div>
         {leads.length > 0 && (
           <button

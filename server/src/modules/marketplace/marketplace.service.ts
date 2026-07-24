@@ -73,7 +73,7 @@ export class MarketplaceService {
       // pool via createCheckout, not just the current page of rows.
       prisma.marketplaceLead.findMany({
         where,
-        orderBy: { listedAt: "asc" },
+        orderBy: { [query.sortBy]: query.sortDir },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         select: {

@@ -384,3 +384,23 @@ create index if not exists marketplace_leads_city_idx on marketplace_leads(city)
 create index if not exists marketplace_leads_state_idx on marketplace_leads(state);
 create index if not exists marketplace_leads_gateway_order_idx on marketplace_leads(gateway_order_id);
 create index if not exists marketplace_leads_buyer_idx on marketplace_leads(buyer_id);
+
+-- 2026-07-24: marketplace landing page "request access" form — public submission, not a
+-- real account. Buyer accounts are still only ever created by Founder/Manager; this just
+-- gives them a reviewable queue instead of a public signup with no oversight.
+do $$ begin
+  create type "BuyerAccessRequestStatus" as enum ('PENDING', 'APPROVED', 'DECLINED');
+exception when duplicate_object then null; end $$;
+create table if not exists buyer_access_requests (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  company text,
+  email text not null,
+  phone text,
+  message text,
+  status "BuyerAccessRequestStatus" not null default 'PENDING',
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  resolved_by_id text references users(id)
+);
+create index if not exists buyer_access_requests_status_created_idx on buyer_access_requests(status, created_at);

@@ -1,8 +1,19 @@
 import { api } from "./client";
 import { CheckoutResult, MarketplaceFilters, PurchasedLead, SearchResult } from "./types";
 
-export async function searchLeads(filters: MarketplaceFilters, quantity: number, page = 1) {
-  const { data } = await api.get<SearchResult>("/marketplace/leads/search", { params: { ...filters, quantity, page } });
+export type SortBy = "listedAt" | "companyName" | "expectedDealValue";
+export type SortDir = "asc" | "desc";
+
+export async function searchLeads(
+  filters: MarketplaceFilters,
+  quantity: number,
+  page = 1,
+  sortBy: SortBy = "listedAt",
+  sortDir: SortDir = "asc"
+) {
+  const { data } = await api.get<SearchResult>("/marketplace/leads/search", {
+    params: { ...filters, quantity, page, sortBy, sortDir },
+  });
   return data;
 }
 

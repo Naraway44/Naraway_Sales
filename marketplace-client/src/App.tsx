@@ -1,12 +1,15 @@
-import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { LandingPage } from "@/pages/Landing";
 import { LoginPage } from "@/pages/Login";
+import { RequestAccessPage } from "@/pages/RequestAccess";
 import { CatalogPage } from "@/pages/Catalog";
 import { DashboardPage } from "@/pages/Dashboard";
 
 const queryClient = new QueryClient();
+const PUBLIC_PATHS = ["/", "/login", "/request-access"];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return `rounded-md px-3 py-1.5 text-sm font-medium transition ${
@@ -16,7 +19,8 @@ function navLinkClass({ isActive }: { isActive: boolean }) {
 
 function TopNav() {
   const { buyer, logout } = useAuth();
-  if (!buyer) return null;
+  const location = useLocation();
+  if (!buyer || PUBLIC_PATHS.includes(location.pathname)) return null;
   return (
     <nav className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
@@ -52,9 +56,10 @@ function App() {
           <div className="min-h-screen bg-background">
             <TopNav />
             <Routes>
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/request-access" element={<RequestAccessPage />} />
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Navigate to="/catalog" replace />} />
                 <Route path="/catalog" element={<CatalogPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
               </Route>

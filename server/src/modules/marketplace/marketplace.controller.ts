@@ -2,10 +2,24 @@ import { Router } from "express";
 import { asyncHandler } from "@/common/middleware/asyncHandler";
 import { ValidationError } from "@/common/errors/AppError";
 import { requireBuyerAuth } from "@/common/middleware/buyerAuth";
+import { accessRequestsService } from "@/modules/buyers/accessRequests.service";
+import { createAccessRequestSchema } from "@/modules/buyers/accessRequests.schemas";
 import { marketplaceService } from "./marketplace.service";
 import { checkoutSchema, marketplaceSearchQuerySchema } from "./marketplace.schemas";
 
 export const marketplaceRouter = Router();
+
+// Public — submitted from the landing page by people who don't have an account yet.
+// This does NOT create a Buyer; Founder/Manager still reviews and creates accounts
+// manually from the Sales OS (see buyersRouter's /access-requests endpoints).
+marketplaceRouter.post(
+  "/access-requests",
+  asyncHandler(async (req, res) => {
+    const parsed = createAccessRequestSchema.safeParse(req.body);
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten());
+    res.status(201).json(await accessRequestsService.create(parsed.data));
+  })
+);
 
 marketplaceRouter.get(
   "/leads/search",

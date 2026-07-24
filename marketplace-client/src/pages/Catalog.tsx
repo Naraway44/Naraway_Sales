@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { checkout, searchLeads } from "@/api/marketplace";
+import { checkout, searchLeads, SortBy, SortDir } from "@/api/marketplace";
 import { MarketplaceFilters, SearchResult } from "@/api/types";
 
 declare global {
@@ -30,7 +30,7 @@ const FILTER_FIELDS: { key: keyof MarketplaceFilters; label: string }[] = [
   { key: "industry", label: "Industry" },
   { key: "city", label: "City" },
   { key: "state", label: "State" },
-  { key: "lostReason", label: "Lost Reason" },
+  { key: "lostReason", label: "Notes" },
   { key: "keyword", label: "Company name" },
 ];
 
@@ -57,6 +57,8 @@ export function CatalogPage() {
   const [filters, setFilters] = useState<MarketplaceFilters>(emptyFilters);
   const [quantity, setQuantity] = useState(1);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortBy>("listedAt");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [result, setResult] = useState<SearchResult | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -69,12 +71,12 @@ export function CatalogPage() {
     localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(savedSearches));
   }, [savedSearches]);
 
-  async function runSearch(e?: FormEvent, targetPage = 1) {
+  async function runSearch(e?: FormEvent, targetPage = 1, targetSortBy = sortBy, targetSortDir = sortDir) {
     e?.preventDefault();
     setLoading(true);
     setCheckoutError("");
     try {
-      const data = await searchLeads(filters, quantity, targetPage);
+      const data = await searchLeads(filters, quantity, targetPage, targetSortBy, targetSortDir);
       setResult(data);
       setPage(targetPage);
       setHasSearched(true);
@@ -137,10 +139,10 @@ export function CatalogPage() {
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:flex-row sm:px-6 sm:py-8">
       {/* Left sidebar — filters, Hunter Discover-style */}
-      <aside className="w-64 shrink-0">
-        <form onSubmit={(e) => runSearch(e, 1)} className="sticky top-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <aside className="w-full shrink-0 sm:w-64">
+        <form onSubmit={(e) => runSearch(e, 1)} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:sticky sm:top-6">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Filters</h2>
             <div className="flex items-center gap-2">
@@ -299,6 +301,26 @@ export function CatalogPage() {
 
             {result.items.length > 0 ? (
               <div className="overflow-x-auto">
+                <div className="flex items-center justify-end gap-2 border-b border-border px-5 py-2">
+                  <label className="text-xs text-muted-foreground">Sort by</label>
+                  <select
+                    value={`${sortBy}:${sortDir}`}
+                    onChange={(e) => {
+                      const [nextSortBy, nextSortDir] = e.target.value.split(":") as [SortBy, SortDir];
+                      setSortBy(nextSortBy);
+                      setSortDir(nextSortDir);
+                      runSearch(undefined, 1, nextSortBy, nextSortDir);
+                    }}
+                    className="rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="listedAt:asc">Oldest listed first</option>
+                    <option value="listedAt:desc">Newest listed first</option>
+                    <option value="companyName:asc">Company name (A–Z)</option>
+                    <option value="companyName:desc">Company name (Z–A)</option>
+                    <option value="expectedDealValue:desc">Deal value (high to low)</option>
+                    <option value="expectedDealValue:asc">Deal value (low to high)</option>
+                  </select>
+                </div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -306,7 +328,7 @@ export function CatalogPage() {
                       <th className="px-5 py-2.5 font-medium">Industry</th>
                       <th className="px-5 py-2.5 font-medium">Location</th>
                       <th className="px-5 py-2.5 font-medium">Service</th>
-                      <th className="px-5 py-2.5 font-medium">Lost Reason</th>
+                      <th className="px-5 py-2.5 font-medium">Notes</th>
                       <th className="px-5 py-2.5 font-medium">Listed</th>
                     </tr>
                   </thead>

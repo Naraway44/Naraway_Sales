@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 
 export function LoginPage() {
@@ -30,9 +30,9 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <p className="text-sm font-semibold tracking-tight text-muted-foreground">
+          <Link to="/" className="text-sm font-semibold tracking-tight text-muted-foreground">
             Naraway <span className="text-primary">Lead Marketplace</span>
-          </p>
+          </Link>
         </div>
 
         <form onSubmit={onSubmit} className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -70,7 +70,10 @@ export function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Access is by invitation only — contact Naraway if you need an account.
+          Don't have an account?{" "}
+          <Link to="/request-access" className="font-medium text-primary hover:underline">
+            Request access
+          </Link>
         </p>
       </div>
     </div>
