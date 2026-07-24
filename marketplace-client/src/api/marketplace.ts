@@ -1,8 +1,8 @@
 import { api } from "./client";
 import { CheckoutResult, MarketplaceFilters, PurchasedLead, SearchResult } from "./types";
 
-export async function searchLeads(filters: MarketplaceFilters, quantity: number) {
-  const { data } = await api.get<SearchResult>("/marketplace/leads/search", { params: { ...filters, quantity } });
+export async function searchLeads(filters: MarketplaceFilters, quantity: number, page = 1) {
+  const { data } = await api.get<SearchResult>("/marketplace/leads/search", { params: { ...filters, quantity, page } });
   return data;
 }
 

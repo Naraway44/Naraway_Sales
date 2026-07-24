@@ -38,6 +38,9 @@ export interface SearchResult {
   pricePerLead: number;
   estimatedTotal: number;
   items: TeaserLead[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface CheckoutResult {

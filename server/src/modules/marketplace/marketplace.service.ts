@@ -69,12 +69,13 @@ export class MarketplaceService {
     const [availableCount, items] = await Promise.all([
       prisma.marketplaceLead.count({ where }),
       // Teaser fields only — company identity and context, never phone/email/contactPerson.
-      // Capped at 25 for display; the actual purchase still pulls from the full matching
-      // pool via createCheckout, not just these rows.
+      // Paginated for browsing; the actual purchase still pulls from the full matching
+      // pool via createCheckout, not just the current page of rows.
       prisma.marketplaceLead.findMany({
         where,
         orderBy: { listedAt: "asc" },
-        take: 25,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
         select: {
           id: true,
           companyName: true,
@@ -98,6 +99,9 @@ export class MarketplaceService {
       pricePerLead,
       estimatedTotal: pricePerLead * deliverable,
       items,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalPages: Math.max(1, Math.ceil(availableCount / query.pageSize)),
     };
   }
 
