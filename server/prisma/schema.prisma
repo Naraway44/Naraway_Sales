@@ -78,6 +78,18 @@ enum LeadRequestStatus {
   DENIED
 }
 
+// Standard size buckets (matches the common industry convention, e.g. Hunter's Discover
+// filters) rather than free text — keeps the field cleanly filterable once populated,
+// instead of needing to clean up inconsistent free-text entries later.
+enum CompanySize {
+  SIZE_1_10
+  SIZE_11_50
+  SIZE_51_200
+  SIZE_201_500
+  SIZE_501_1000
+  SIZE_1000_PLUS
+}
+
 enum MarketplaceLeadStatus {
   LISTED
   PENDING
@@ -274,6 +286,7 @@ model Lead {
   email         String?
   website       String?
   industry      String?
+  companySize   CompanySize? @map("company_size")
   city          String?
   state         String?
   country       String?
@@ -468,6 +481,7 @@ model MarketplaceLead {
   phone          String?
   email          String?
   industry       String?
+  companySize    CompanySize? @map("company_size")
   city           String?
   state          String?
   service        String?

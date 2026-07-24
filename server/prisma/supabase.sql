@@ -404,3 +404,12 @@ create table if not exists buyer_access_requests (
   resolved_by_id text references users(id)
 );
 create index if not exists buyer_access_requests_status_created_idx on buyer_access_requests(status, created_at);
+
+-- 2026-07-24: company size on leads — standard buckets (1-10, 11-50, ...) rather than free
+-- text, so it stays cleanly filterable on the marketplace once populated. Nullable/optional
+-- everywhere: existing leads have no value until staff start entering it going forward.
+do $$ begin
+  create type "CompanySize" as enum ('SIZE_1_10', 'SIZE_11_50', 'SIZE_51_200', 'SIZE_201_500', 'SIZE_501_1000', 'SIZE_1000_PLUS');
+exception when duplicate_object then null; end $$;
+alter table leads add column if not exists company_size "CompanySize";
+alter table marketplace_leads add column if not exists company_size "CompanySize";

@@ -5,11 +5,13 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LandingPage } from "@/pages/Landing";
 import { LoginPage } from "@/pages/Login";
 import { RequestAccessPage } from "@/pages/RequestAccess";
+import { TermsPage } from "@/pages/Terms";
+import { PrivacyPage } from "@/pages/Privacy";
 import { CatalogPage } from "@/pages/Catalog";
 import { DashboardPage } from "@/pages/Dashboard";
 
 const queryClient = new QueryClient();
-const PUBLIC_PATHS = ["/", "/login", "/request-access"];
+const PUBLIC_PATHS = ["/", "/login", "/request-access", "/terms", "/privacy"];
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return `rounded-md px-3 py-1.5 text-sm font-medium transition ${
@@ -59,6 +61,8 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/request-access" element={<RequestAccessPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/catalog" element={<CatalogPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
