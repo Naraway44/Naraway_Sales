@@ -11,13 +11,18 @@ import { CheckoutInput, MarketplaceFilter, MarketplaceSearchQuery } from "./mark
 const ABANDONED_CHECKOUT_MINUTES = 30;
 const EXCLUSIVITY_DAYS = 60;
 
+function contains(value: string): Prisma.StringFilter {
+  return { contains: value, mode: "insensitive" };
+}
+
 function filterWhere(filter: MarketplaceFilter): Prisma.MarketplaceLeadWhereInput {
   return {
-    ...(filter.service ? { service: filter.service } : {}),
-    ...(filter.industry ? { industry: filter.industry } : {}),
-    ...(filter.city ? { city: filter.city } : {}),
-    ...(filter.state ? { state: filter.state } : {}),
-    ...(filter.lostReason ? { lostReason: filter.lostReason } : {}),
+    // Partial / case-insensitive match so buyers aren't stuck on exact strings.
+    ...(filter.service ? { service: contains(filter.service) } : {}),
+    ...(filter.industry ? { industry: contains(filter.industry) } : {}),
+    ...(filter.city ? { city: contains(filter.city) } : {}),
+    ...(filter.state ? { state: contains(filter.state) } : {}),
+    ...(filter.lostReason ? { lostReason: contains(filter.lostReason) } : {}),
     ...(filter.dealValueMin != null || filter.dealValueMax != null
       ? {
           expectedDealValue: {
@@ -34,7 +39,7 @@ function filterWhere(filter: MarketplaceFilter): Prisma.MarketplaceLeadWhereInpu
           },
         }
       : {}),
-    ...(filter.keyword ? { companyName: { contains: filter.keyword, mode: "insensitive" } } : {}),
+    ...(filter.keyword ? { companyName: contains(filter.keyword) } : {}),
   };
 }
 

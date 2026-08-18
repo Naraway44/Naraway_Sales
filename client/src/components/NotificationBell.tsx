@@ -11,6 +11,12 @@ function linkFor(alert: AlertItem, isExecutive: boolean): string {
     }
     return "/leads?overdueOnly=true&sort=nextFollowUp:asc";
   }
+  if (alert.id.startsWith("new-sla-")) {
+    if (alert.link.type === "user") {
+      return `/leads?ownerId=${alert.link.id}&status=NEW&sort=createdAt:desc`;
+    }
+    return "/leads?status=NEW&sort=createdAt:desc";
+  }
   if (alert.link.type === "self") {
     return isExecutive ? "/my-dashboard" : "/dashboard";
   }
@@ -21,13 +27,15 @@ function linkFor(alert: AlertItem, isExecutive: boolean): string {
 function groupLabel(alert: AlertItem): string {
   const id = alert.id;
   if (id.startsWith("attendance-")) return "Attendance";
-  if (id.startsWith("overdue-")) return "Follow-ups";
-  if (id.startsWith("idle-") || id.includes("away") || /idle|away/i.test(alert.title)) return "Away / idle";
-  if (id.startsWith("stale-") || id.includes("abandoned")) return "System";
+  if (id.startsWith("overdue-") || id.startsWith("new-sla-")) return "Follow-ups";
+  if (id.startsWith("idle-") || id.startsWith("away-") || /idle|away/i.test(alert.title)) return "Away / idle";
+  if (id.startsWith("neglected-") || id.startsWith("stale-") || id.includes("abandoned") || id.startsWith("auto-")) {
+    return "Leads / system";
+  }
   return "Other";
 }
 
-const GROUP_ORDER = ["Attendance", "Follow-ups", "Away / idle", "System", "Other"];
+const GROUP_ORDER = ["Attendance", "Follow-ups", "Away / idle", "Leads / system", "Other"];
 
 export function NotificationBell() {
   const { user } = useAuth();

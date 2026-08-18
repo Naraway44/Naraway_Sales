@@ -619,7 +619,9 @@ export class AnalyticsService {
     const repIds = reps.map((r) => r.id);
     const repById = new Map(reps.map((r) => [r.id, r]));
 
-    const [staleLeads, overdueGroups, openSessions] = await Promise.all([
+    const newLeadSlaCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [staleLeads, overdueGroups, openSessions, newLeadSlaGroups] = await Promise.all([
       findStaleLeads({ ownerIds: repIds, statuses: NEGLECTED_STATUSES, days: 5 }),
       prisma.lead.groupBy({
         by: ["ownerId"],
@@ -629,6 +631,17 @@ export class AnalyticsService {
       prisma.userSession.findMany({
         where: { userId: { in: repIds }, logoutAt: null },
         select: { userId: true, loginAt: true, lastHeartbeatAt: true },
+      }),
+      // NEW leads sitting untouched 24h+ — first-contact SLA before the 5-day neglect sweep.
+      prisma.lead.groupBy({
+        by: ["ownerId"],
+        where: {
+          ownerId: { in: repIds },
+          status: "NEW",
+          createdAt: { lt: newLeadSlaCutoff },
+          firstContactedAt: null,
+        },
+        _count: { _all: true },
       }),
     ]);
 
@@ -664,6 +677,21 @@ export class AnalyticsService {
         severity: "warning",
         title: isOrgWide ? `${rep.name} has ${g._count._all} overdue follow-up(s)` : `You have ${g._count._all} overdue follow-up(s)`,
         message: "Follow-up date has already passed.",
+        link: linkTo(g.ownerId),
+      });
+    }
+
+    for (const g of newLeadSlaGroups) {
+      if (!g.ownerId || g._count._all === 0) continue;
+      const rep = repById.get(g.ownerId);
+      if (!rep) continue;
+      alerts.push({
+        id: `new-sla-${g.ownerId}`,
+        severity: g._count._all >= 5 ? "critical" : "warning",
+        title: isOrgWide
+          ? `${rep.name} has ${g._count._all} new lead(s) waiting 24h+`
+          : `You have ${g._count._all} new lead(s) waiting 24h+`,
+        message: "Still NEW with no first contact — open New leads and make the first call.",
         link: linkTo(g.ownerId),
       });
     }

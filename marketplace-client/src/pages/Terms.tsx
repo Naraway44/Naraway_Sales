@@ -92,9 +92,9 @@ export function TermsPage() {
             </p>
           </section>
 
-          <p className="border-t border-border pt-5 text-xs italic">
-            This page describes how the platform is intended to operate. It has not been reviewed by legal counsel —
-            have it reviewed before relying on it for production commercial use.
+          <p className="border-t border-border pt-5 text-xs text-muted-foreground">
+            These terms describe how the Naraway Lead Marketplace operates today. For production commercial use, have
+            counsel review and customize them for your jurisdiction.
           </p>
         </div>
       </main>

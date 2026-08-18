@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { checkout, searchLeads, SortBy, SortDir } from "@/api/marketplace";
+import { checkout, myPurchases, searchLeads, SortBy, SortDir } from "@/api/marketplace";
 import { MarketplaceFilters, SearchResult } from "@/api/types";
 
 declare global {
@@ -69,8 +69,10 @@ export function CatalogPage() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
+  const [purchasesReady, setPurchasesReady] = useState(0);
   const [searchError, setSearchError] = useState("");
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(loadSavedSearches);
+  const purchaseBaseline = useRef(0);
 
   useEffect(() => {
     localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(savedSearches));
@@ -81,6 +83,30 @@ export function CatalogPage() {
     void runSearch(undefined, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only bootstrap
   }, []);
+
+  // After Razorpay success, payment confirmation is webhook-driven — poll My Leads until new rows appear.
+  useEffect(() => {
+    if (!purchaseComplete) return;
+    let cancelled = false;
+    let attempts = 0;
+    const tick = async () => {
+      try {
+        const leads = await myPurchases();
+        if (cancelled) return;
+        const gained = Math.max(0, leads.length - purchaseBaseline.current);
+        setPurchasesReady(gained);
+        if (gained > 0 || attempts >= 12) return;
+      } catch {
+        /* keep trying briefly */
+      }
+      attempts += 1;
+      if (!cancelled && attempts < 12) window.setTimeout(tick, 2500);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+    };
+  }, [purchaseComplete]);
 
   async function runSearch(e?: FormEvent, targetPage = 1, targetSortBy = sortBy, targetSortDir = sortDir) {
     e?.preventDefault();
@@ -153,7 +179,14 @@ export function CatalogPage() {
         name: "Naraway Lead Marketplace",
         description: `${order.leadCount} lead${order.leadCount === 1 ? "" : "s"}`,
         theme: { color: "#0f766e" },
-        handler: () => {
+        handler: async () => {
+          try {
+            const before = await myPurchases();
+            purchaseBaseline.current = before.length;
+          } catch {
+            purchaseBaseline.current = 0;
+          }
+          setPurchasesReady(0);
           setPurchaseComplete(true);
           setCheckingOut(false);
           setResult(null);
@@ -294,11 +327,23 @@ export function CatalogPage() {
 
         {purchaseComplete && (
           <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
-            <strong>Payment received.</strong> Your leads usually appear in{" "}
-            <Link to="/dashboard" className="font-semibold underline">
-              My Leads
-            </Link>{" "}
-            within a minute. If the list is empty, wait a moment and refresh.
+            {purchasesReady > 0 ? (
+              <>
+                <strong>Your leads are ready.</strong>{" "}
+                <Link to="/dashboard" className="font-semibold underline">
+                  Open My Leads
+                </Link>{" "}
+                to view and export {purchasesReady} new lead{purchasesReady === 1 ? "" : "s"}.
+              </>
+            ) : (
+              <>
+                <strong>Payment received.</strong> Confirming your purchase… leads usually show in{" "}
+                <Link to="/dashboard" className="font-semibold underline">
+                  My Leads
+                </Link>{" "}
+                within a minute.
+              </>
+            )}
           </div>
         )}
 

@@ -98,9 +98,9 @@ export function PrivacyPage() {
             </p>
           </section>
 
-          <p className="border-t border-border pt-5 text-xs italic">
-            This page describes how the platform currently operates. It has not been reviewed by legal counsel — have it
-            reviewed before relying on it for production commercial use.
+          <p className="border-t border-border pt-5 text-xs text-muted-foreground">
+            This notice describes how the marketplace handles data today. For production commercial use, have counsel
+            review and customize it for your jurisdiction.
           </p>
         </div>
       </main>
