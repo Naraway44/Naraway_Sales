@@ -49,6 +49,8 @@ export const listLeadsQuerySchema = z.object({
   sourceId: z.string().cuid().optional(),
   state: z.string().optional(),
   unassigned: z.coerce.boolean().optional(),
+  /** nextFollowUp strictly before start of today (server local date). */
+  overdueOnly: z.coerce.boolean().optional(),
   createdFrom: z.coerce.date().optional(),
   createdTo: z.coerce.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -64,6 +66,14 @@ export const bulkAssignSchema = z.object({
   ownerId: z.string().cuid(),
 });
 
+export const bulkUpdateSchema = z
+  .object({
+    leadIds: z.array(z.string().cuid()).min(1),
+    status: leadStatusEnum.optional(),
+    priority: priorityEnum.optional(),
+  })
+  .refine((input) => input.status || input.priority, { message: "Choose a status or priority to update" });
+
 export const routeLeadSchema = z.object({
   targetServiceId: z.string().cuid(),
   note: z.string().optional(),
@@ -73,4 +83,5 @@ export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 export type ListLeadsQuery = z.infer<typeof listLeadsQuerySchema>;
 export type BulkAssignInput = z.infer<typeof bulkAssignSchema>;
+export type BulkUpdateInput = z.infer<typeof bulkUpdateSchema>;
 export type RouteLeadInput = z.infer<typeof routeLeadSchema>;

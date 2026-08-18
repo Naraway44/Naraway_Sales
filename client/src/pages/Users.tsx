@@ -49,7 +49,17 @@ export function UsersPage() {
     onSuccess: () => {
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ["users-all"] });
+      showToast("Account deleted.");
     },
+    onError: (err) => showToast(getErrorMessage(err, "Could not delete account."), "error"),
+  });
+  const activeMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => updateUser(id, { isActive }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["users-all"] });
+      showToast(vars.isActive ? "Account activated." : "Account deactivated — they can no longer log in.");
+    },
+    onError: (err) => showToast(getErrorMessage(err, "Could not update account status."), "error"),
   });
   const capacityMutation = useMutation({
     mutationFn: ({ id, leadCapacity }: { id: string; leadCapacity: number }) => updateUser(id, { leadCapacity }),
@@ -107,6 +117,15 @@ export function UsersPage() {
   }
 
   return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold">Team</h1>
+        <p className="text-sm text-muted-foreground">
+          {canCreate
+            ? "As Founder you can deactivate or permanently delete other accounts. You cannot delete your own."
+            : "Managers can delete Sales Executive accounts only."}
+        </p>
+      </div>
     <div className="grid grid-cols-3 gap-6">
       <Card className={`overflow-x-auto p-0 ${canCreate ? "col-span-2" : "col-span-3"}`}>
         <table className="w-full text-sm">
@@ -120,7 +139,7 @@ export function UsersPage() {
               <th className="px-3 py-2">Capacity</th>
               <th className="px-3 py-2">Schedule</th>
               <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2"></th>
+              <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -194,13 +213,28 @@ export function UsersPage() {
                   </Badge>
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {u.id !== currentUser?.id && canDelete(u.role) && (
-                    <button
-                      onClick={() => setDeleteTarget({ id: u.id, name: u.name })}
-                      className="text-xs text-muted-foreground hover:text-destructive"
-                    >
-                      Delete
-                    </button>
+                  {u.id !== currentUser?.id && (canCreate || canDelete(u.role)) && (
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {canCreate && (
+                        <Button
+                          variant="secondary"
+                          className="h-7 px-2 text-xs"
+                          disabled={activeMutation.isPending}
+                          onClick={() => activeMutation.mutate({ id: u.id, isActive: !u.isActive })}
+                        >
+                          {u.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      )}
+                      {canDelete(u.role) && (
+                        <Button
+                          variant="destructive"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setDeleteTarget({ id: u.id, name: u.name })}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>
@@ -341,12 +375,13 @@ export function UsersPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete this account?"
-        description={`${deleteTarget?.name} will be permanently removed and can no longer log in. Their past leads/comments stay in history but show as "Deleted user". This cannot be undone.`}
+        description={`${deleteTarget?.name} will be permanently removed and can no longer log in. Their past leads/comments stay in history but show as "Deleted user". This cannot be undone. Prefer Deactivate if you might need the account again.`}
         confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete account"}
         destructive
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
       />
+    </div>
     </div>
   );
 }

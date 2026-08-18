@@ -1,10 +1,14 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { checkout, searchLeads, SortBy, SortDir } from "@/api/marketplace";
 import { MarketplaceFilters, SearchResult } from "@/api/types";
 
 declare global {
   interface Window {
-    Razorpay: new (options: Record<string, unknown>) => { open: () => void };
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on?: (event: string, handler: () => void) => void;
+    };
   }
 }
 
@@ -65,20 +69,32 @@ export function CatalogPage() {
   const [checkoutError, setCheckoutError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(loadSavedSearches);
 
   useEffect(() => {
     localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(savedSearches));
   }, [savedSearches]);
 
+  // Load the full listed pool on first visit so buyers aren't stuck on an empty dashed box.
+  useEffect(() => {
+    void runSearch(undefined, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only bootstrap
+  }, []);
+
   async function runSearch(e?: FormEvent, targetPage = 1, targetSortBy = sortBy, targetSortDir = sortDir) {
     e?.preventDefault();
     setLoading(true);
     setCheckoutError("");
+    setSearchError("");
     try {
       const data = await searchLeads(filters, quantity, targetPage, targetSortBy, targetSortDir);
       setResult(data);
       setPage(targetPage);
+      setHasSearched(true);
+    } catch {
+      setSearchError("Couldn't load leads — please try again.");
+      setResult(null);
       setHasSearched(true);
     } finally {
       setLoading(false);
@@ -103,6 +119,21 @@ export function CatalogPage() {
 
   function loadSavedSearch(saved: SavedSearch) {
     setFilters(saved.filters);
+    // Re-run after state settles — pass filters via a dedicated search call.
+    setLoading(true);
+    setSearchError("");
+    searchLeads(saved.filters, quantity, 1, sortBy, sortDir)
+      .then((data) => {
+        setResult(data);
+        setPage(1);
+        setHasSearched(true);
+      })
+      .catch(() => {
+        setSearchError("Couldn't load leads — please try again.");
+        setResult(null);
+        setHasSearched(true);
+      })
+      .finally(() => setLoading(false));
   }
 
   function removeSavedSearch(name: string) {
@@ -124,10 +155,15 @@ export function CatalogPage() {
         theme: { color: "#0f766e" },
         handler: () => {
           setPurchaseComplete(true);
+          setCheckingOut(false);
           setResult(null);
           setHasSearched(false);
         },
         modal: { ondismiss: () => setCheckingOut(false) },
+      });
+      razorpay.on?.("payment.failed", () => {
+        setCheckoutError("Payment failed — please try again.");
+        setCheckingOut(false);
       });
       razorpay.open();
     } catch {
@@ -258,13 +294,23 @@ export function CatalogPage() {
 
         {purchaseComplete && (
           <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
-            <strong>Purchase complete.</strong> Head to <span className="underline">My Leads</span> to view and export them.
+            <strong>Payment received.</strong> Your leads usually appear in{" "}
+            <Link to="/dashboard" className="font-semibold underline">
+              My Leads
+            </Link>{" "}
+            within a minute. If the list is empty, wait a moment and refresh.
           </div>
         )}
 
-        {!hasSearched && (
-          <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
-            Set your filters on the left and click <strong>Apply filters</strong> to see matching leads.
+        {searchError && (
+          <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {searchError}
+          </div>
+        )}
+
+        {!hasSearched && loading && (
+          <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+            Loading leads…
           </div>
         )}
 
@@ -328,6 +374,7 @@ export function CatalogPage() {
                       <th className="px-5 py-2.5 font-medium">Industry</th>
                       <th className="px-5 py-2.5 font-medium">Location</th>
                       <th className="px-5 py-2.5 font-medium">Service</th>
+                      <th className="px-5 py-2.5 font-medium">Deal value</th>
                       <th className="px-5 py-2.5 font-medium">Notes</th>
                       <th className="px-5 py-2.5 font-medium">Listed</th>
                     </tr>
@@ -341,6 +388,11 @@ export function CatalogPage() {
                           {[lead.city, lead.state].filter(Boolean).join(", ") || "—"}
                         </td>
                         <td className="px-5 py-2.5 text-muted-foreground">{lead.service ?? "—"}</td>
+                        <td className="px-5 py-2.5 text-muted-foreground">
+                          {lead.expectedDealValue != null && lead.expectedDealValue !== ""
+                            ? `₹${Number(lead.expectedDealValue).toLocaleString("en-IN")}`
+                            : "—"}
+                        </td>
                         <td className="px-5 py-2.5 text-muted-foreground">{lead.lostReason ?? "—"}</td>
                         <td className="px-5 py-2.5 text-muted-foreground">{new Date(lead.listedAt).toLocaleDateString()}</td>
                       </tr>

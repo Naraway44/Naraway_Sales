@@ -4,7 +4,7 @@ import { NotFoundError, ValidationError } from "@/common/errors/AppError";
 import { logActivity } from "@/modules/activities/activities.service";
 import { assignmentService } from "@/modules/assignment/assignment.service";
 import { AuthUser } from "@/common/middleware/auth";
-import { CreateLeadInput, ListLeadsQuery, UpdateLeadInput } from "./leads.schemas";
+import { BulkUpdateInput, CreateLeadInput, ListLeadsQuery, UpdateLeadInput } from "./leads.schemas";
 
 export class LeadsService {
   /** Executives are hard-scoped to their own leads at the query level, not just in the UI. */
@@ -16,6 +16,9 @@ export class LeadsService {
   }
 
   async list(user: AuthUser, query: ListLeadsQuery) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const where: Prisma.LeadWhereInput = {
       ...this.scopeFor(user),
       ...(query.status ? { status: query.status } : {}),
@@ -25,6 +28,7 @@ export class LeadsService {
       ...(query.sourceId ? { sourceId: query.sourceId } : {}),
       ...(query.state ? { state: query.state } : {}),
       ...(query.unassigned ? { ownerId: null } : {}),
+      ...(query.overdueOnly ? { nextFollowUp: { lt: startOfToday } } : {}),
       ...(query.createdFrom || query.createdTo
         ? {
             createdAt: {
@@ -136,6 +140,51 @@ export class LeadsService {
     return updated;
   }
 
+  /** Applies the same lightweight workflow update to a checked set of leads. */
+  async bulkUpdate(user: AuthUser, input: BulkUpdateInput) {
+    const scoped = await prisma.lead.findMany({
+      where: { id: { in: input.leadIds }, ...this.scopeFor(user) },
+      select: { id: true, ownerId: true, status: true, firstContactedAt: true },
+    });
+
+    // Executives must never be able to affect a lead outside their own book.
+    if (scoped.length !== input.leadIds.length) throw new ValidationError("One or more leads are unavailable");
+
+    await prisma.$transaction(
+      scoped.map((lead) => {
+        const firstContactedAt =
+          input.status && input.status !== "NEW" && lead.status === "NEW" && !lead.firstContactedAt
+            ? new Date()
+            : undefined;
+        return prisma.lead.update({
+          where: { id: lead.id },
+          data: { status: input.status, priority: input.priority, ...(firstContactedAt ? { firstContactedAt } : {}) },
+        });
+      })
+    );
+
+    await Promise.all(
+      scoped.map((lead) =>
+        logActivity({
+          leadId: lead.id,
+          userId: user.id,
+          action: input.status && input.status !== lead.status ? ActivityAction.STATUS_CHANGED : ActivityAction.FIELD_UPDATED,
+          notes: input.status && input.status !== lead.status ? `${lead.status} -> ${input.status}` : "Bulk workflow update",
+        })
+      )
+    );
+
+    // Preserve the normal single-lead behaviour: closing a lead gives its owner the next
+    // available lead, so a bulk close does not leave a rep's book unnecessarily empty.
+    if (input.status === "WON" || input.status === "LOST") {
+      for (const lead of scoped.filter((lead) => lead.ownerId && lead.status !== input.status)) {
+        await assignmentService.backfillIfCapacityFreed(lead.ownerId!, user.id);
+      }
+    }
+
+    return { updatedCount: scoped.length };
+  }
+
   /** Owner marks "I'm working this myself" (or clears it) — see AssignmentService.setPinned. */
   async setPinned(user: AuthUser, id: string, pinned: boolean) {
     await this.getById(user, id); // enforces RBAC scope + existence
@@ -177,7 +226,11 @@ export class LeadsService {
       notes: note ? `${outcome}: ${note}` : outcome,
     });
 
-    const data: { lastContactAt: Date; nextFollowUp?: Date } = { lastContactAt: new Date() };
+    const data: { lastContactAt: Date; nextFollowUp?: Date; status?: "CONTACTED"; firstContactedAt?: Date } = { lastContactAt: new Date() };
+    if (outcome === "CONNECTED" && lead.status === "NEW") {
+      data.status = "CONTACTED";
+      data.firstContactedAt = new Date();
+    }
     const needsRetry = outcome === "NO_ANSWER" || outcome === "VOICEMAIL" || outcome === "CALL_BACK_LATER";
 
     if (explicitNextFollowUp) {

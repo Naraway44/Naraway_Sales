@@ -6,6 +6,7 @@ import { ValidationError } from "@/common/errors/AppError";
 import { leadsService } from "./leads.service";
 import {
   bulkAssignSchema,
+  bulkUpdateSchema,
   createLeadSchema,
   listLeadsQuerySchema,
   routeLeadSchema,
@@ -166,6 +167,15 @@ leadsRouter.post(
     res.json(
       await assignmentService.assignBulk(parsed.data.leadIds, parsed.data.ownerId, req.user!.id)
     );
+  })
+);
+
+leadsRouter.post(
+  "/bulk-update",
+  asyncHandler(async (req, res) => {
+    const parsed = bulkUpdateSchema.safeParse(req.body);
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten());
+    res.json(await leadsService.bulkUpdate(req.user!, parsed.data));
   })
 );
 

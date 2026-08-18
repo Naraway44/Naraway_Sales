@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
 
 export function LoginPage() {
   const { buyer, login } = useAuth();
@@ -20,62 +21,71 @@ export function LoginPage() {
       await login(email, password);
       navigate("/catalog");
     } catch {
-      setError("Invalid email or password");
+      setError("Invalid email or password. If you were just approved, use the credentials Naraway sent you.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <Link to="/" className="text-sm font-semibold tracking-tight text-muted-foreground">
-            Naraway <span className="text-primary">Lead Marketplace</span>
-          </Link>
-        </div>
-
-        <form onSubmit={onSubmit} className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h1 className="mb-1 text-lg font-semibold">Sign in</h1>
-          <p className="mb-5 text-sm text-muted-foreground">Use the account Naraway created for you.</p>
-
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
-          <input
-            type="email"
-            required
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
-
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">Password</label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mb-4 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
-
-          {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60"
-          >
-            {submitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Don't have an account?{" "}
-          <Link to="/request-access" className="font-medium text-primary hover:underline">
-            Request access
-          </Link>
-        </p>
+    <div className="flex min-h-screen flex-col bg-background">
+      <div className="relative pb-4 pt-4">
+        <PublicHeader />
       </div>
+      <div className="flex flex-1 items-center justify-center p-4 pt-20">
+        <div className="w-full max-w-sm">
+          <form onSubmit={onSubmit} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h1 className="mb-1 text-lg font-semibold">Welcome back</h1>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+              Sign in with the buyer account we sent after approving your access request.
+            </p>
+
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
+            <input
+              type="email"
+              required
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="mb-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Password</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-4 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+
+            {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60"
+            >
+              {submitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Don't have an account yet?{" "}
+            <Link to="/request-access" className="font-medium text-primary hover:underline">
+              Request access
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Need help?{" "}
+            <a href="mailto:support@naraway.com" className="text-primary hover:underline">
+              support@naraway.com
+            </a>
+          </p>
+        </div>
+      </div>
+      <PublicFooter />
     </div>
   );
 }

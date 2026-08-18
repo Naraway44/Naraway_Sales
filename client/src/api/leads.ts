@@ -10,6 +10,7 @@ export interface LeadListParams {
   sourceId?: string;
   state?: string;
   unassigned?: boolean;
+  overdueOnly?: boolean;
   createdFrom?: string;
   createdTo?: string;
   page?: number;
@@ -49,6 +50,11 @@ export async function assignLead(id: string, ownerId: string) {
 
 export async function bulkAssignLeads(leadIds: string[], ownerId: string) {
   const { data } = await api.post<Lead[]>("/leads/bulk-assign", { leadIds, ownerId });
+  return data;
+}
+
+export async function bulkUpdateLeads(leadIds: string[], input: { status?: Lead["status"]; priority?: Lead["priority"] }) {
+  const { data } = await api.post<{ updatedCount: number }>("/leads/bulk-update", { leadIds, ...input });
   return data;
 }
 

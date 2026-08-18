@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { startOfMonth } from "date-fns";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMemberProfile } from "@/api/analytics";
 import { getUserAttendance } from "@/api/attendance";
+import { deleteUser, updateUser } from "@/api/users";
 import { AttendanceCalendar } from "@/components/AttendanceCalendar";
+import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
+import { useAuth } from "@/lib/auth";
+import { getErrorMessage } from "@/lib/errors";
 
 // Fixed-order categorical colors (never cycled), reference palette from the dataviz skill.
 const OUTCOME_COLORS: Record<string, string> = {
@@ -46,17 +52,48 @@ function formatMinutes(minutes: number): string {
 
 export function MemberProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { showToast } = useToast();
+  const { user: currentUser } = useAuth();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["member-profile", id],
     queryFn: () => getMemberProfile(id!),
     enabled: !!id,
   });
   const [attendanceMonth, setAttendanceMonth] = useState(() => startOfMonth(new Date()));
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const monthParam = `${attendanceMonth.getFullYear()}-${String(attendanceMonth.getMonth() + 1).padStart(2, "0")}`;
   const { data: attendanceDays, isLoading: attendanceLoading } = useQuery({
     queryKey: ["user-attendance", id, monthParam],
     queryFn: () => getUserAttendance(id!, monthParam),
     enabled: !!id,
+  });
+
+  const isSelf = !!currentUser && !!id && currentUser.id === id;
+  const canManageAccounts = currentUser?.role === "FOUNDER" || currentUser?.role === "MANAGER";
+  const canDeleteTarget =
+    !!data &&
+    !isSelf &&
+    (currentUser?.role === "FOUNDER" || (currentUser?.role === "MANAGER" && data.user.role === "EXECUTIVE"));
+  const canDeactivate = !!data && !isSelf && currentUser?.role === "FOUNDER";
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteUser(id!),
+    onSuccess: () => {
+      showToast("Account deleted.");
+      navigate("/users");
+    },
+    onError: (err) => showToast(getErrorMessage(err, "Could not delete account."), "error"),
+  });
+  const activeMutation = useMutation({
+    mutationFn: (isActive: boolean) => updateUser(id!, { isActive }),
+    onSuccess: (_d, isActive) => {
+      qc.invalidateQueries({ queryKey: ["member-profile", id] });
+      qc.invalidateQueries({ queryKey: ["users-all"] });
+      showToast(isActive ? "Account activated." : "Account deactivated.");
+    },
+    onError: (err) => showToast(getErrorMessage(err, "Could not update account status."), "error"),
   });
 
   if (isLoading) return <p className="text-muted-foreground">Loading profile...</p>;
@@ -66,7 +103,7 @@ export function MemberProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">
             {data.user.name} <span className="font-mono text-sm text-muted-foreground">({data.user.employeeId})</span>
@@ -75,10 +112,24 @@ export function MemberProfilePage() {
             {data.user.email} · {data.user.role} · {data.user.team ?? "No team"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge className={data.user.isActive ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}>
             {data.user.isActive ? "Active" : "Inactive"}
           </Badge>
+          {canManageAccounts && canDeactivate && (
+            <Button
+              variant="secondary"
+              disabled={activeMutation.isPending}
+              onClick={() => activeMutation.mutate(!data.user.isActive)}
+            >
+              {data.user.isActive ? "Deactivate" : "Activate"}
+            </Button>
+          )}
+          {canDeleteTarget && (
+            <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
+              Delete account
+            </Button>
+          )}
           <Link to="/users" className="text-sm text-primary underline">
             Back to Team
           </Link>
@@ -255,6 +306,16 @@ export function MemberProfilePage() {
           {data.recentActivity.length === 0 && <li className="text-sm text-muted-foreground">No activity recorded.</li>}
         </ol>
       </Card>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this account?"
+        description={`${data.user.name} will be permanently removed and can no longer log in. Prefer Deactivate if you might need them again. This cannot be undone.`}
+        confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete account"}
+        destructive
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => deleteMutation.mutate()}
+      />
     </div>
   );
 }

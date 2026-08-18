@@ -24,8 +24,8 @@ function TopNav() {
   const location = useLocation();
   if (!buyer || PUBLIC_PATHS.includes(location.pathname)) return null;
   return (
-    <nav className="border-b border-border bg-card">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+    <nav className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-6">
           <span className="text-sm font-semibold tracking-tight">
             Naraway <span className="text-primary">Lead Marketplace</span>

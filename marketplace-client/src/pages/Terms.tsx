@@ -1,45 +1,104 @@
 import { Link } from "react-router-dom";
+import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
 
 export function TermsPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-      <Link to="/" className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground">
-        ← Back
-      </Link>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Terms of Use</h1>
-      <div className="space-y-5 text-sm text-muted-foreground">
-        <p>
-          <strong className="text-foreground">Access.</strong> Accounts on the Naraway Lead Marketplace are created
-          only after a request is reviewed and approved by Naraway. Access is not transferable — each account is for
-          use by one person, and Naraway may deactivate an account used outside of that.
-        </p>
-        <p>
-          <strong className="text-foreground">Purchases.</strong> Pricing is based on the number of leads purchased
-          in a single order and is shown in full before checkout. Once purchased, a lead is exclusive to that buyer
-          for 2 months from the purchase date and is never resold or shared with another buyer.
-        </p>
-        <p>
-          <strong className="text-foreground">Use of leads.</strong> Leads are provided for the buyer's own business
-          outreach. Buyers are responsible for their own compliance with applicable communication and data protection
-          laws when contacting the businesses whose details they've purchased.
-        </p>
-        <p>
-          <strong className="text-foreground">Payments.</strong> Payments are processed securely through Razorpay.
-          Naraway does not store or have access to card or payment details.
-        </p>
-        <p>
-          <strong className="text-foreground">Support.</strong> Questions or issues with a purchased lead can be
-          raised at{" "}
-          <a href="mailto:support@naraway.com" className="text-primary hover:underline">
-            support@naraway.com
-          </a>
-          .
-        </p>
-        <p className="border-t border-border pt-5 text-xs italic">
-          This page describes how the platform currently operates. It is a placeholder and has not been reviewed by
-          legal counsel — please have it reviewed before relying on it for real transactions.
-        </p>
+    <div className="flex min-h-screen flex-col bg-background">
+      <div className="relative pb-4 pt-4">
+        <PublicHeader />
       </div>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-12 pt-24 sm:px-6">
+        <Link to="/" className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground">
+          ← Back to home
+        </Link>
+        <h1 className="mb-2 text-2xl font-semibold tracking-tight">Terms of Use</h1>
+        <p className="mb-8 text-xs text-muted-foreground">Naraway Lead Marketplace · last updated 2026</p>
+
+        <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">1. The service</h2>
+            <p>
+              Naraway Lead Marketplace (“the Marketplace”) is a buyer-facing storefront where approved external buyers
+              may browse teaser information about curated B2B leads, purchase exclusive access to contact details, and
+              export purchased leads. It is separate from Naraway's internal Sales OS.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">2. Access & accounts</h2>
+            <p>
+              Accounts are created only after Naraway reviews an access request. There is no open public registration.
+              Each account is for use by one person and is not transferable. Naraway may suspend or deactivate accounts
+              used outside these terms, shared improperly, or used to scrape or abuse the service. Logging in from a new
+              device may invalidate a previous session.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">3. Lead nature & exclusivity</h2>
+            <p>
+              Leads listed on the Marketplace are opportunities Naraway is no longer pursuing. Before purchase you see
+              teaser fields only (for example company, industry, location, service, notes). Phone, email, and contact
+              person are revealed after successful payment. Each lead is sold to at most one buyer and remains exclusive
+              to that buyer for two (2) months from purchase. Leads are not resold or recycled after exclusivity ends.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">4. Pricing & purchases</h2>
+            <p>
+              Pricing is volume-based on the quantity of leads in a single order and is shown before checkout. There is
+              no published static rate card on the public website. If fewer matching leads are available at payment than
+              requested, you are charged only for leads actually delivered. Payments are processed by Razorpay; Naraway
+              does not store card or UPI credentials.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">5. Permitted use</h2>
+            <p>
+              Purchased lead data is for your own legitimate business outreach and pipeline building. You are responsible
+              for complying with applicable laws (including telecom, spam, and data-protection rules) when contacting
+              businesses. You may not resell, republish, or redistribute purchased lead data as a competing data product
+              without Naraway's written permission.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">6. No warranties on conversion</h2>
+            <p>
+              Leads are provided as contact and context data only. Naraway does not guarantee that a lead will answer,
+              convert, or be currently in-market. Contact accuracy issues should be reported to support for review;
+              remedies, if any, are handled case by case and are not automated in the product.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">7. Support</h2>
+            <p>
+              Contact{" "}
+              <a href="mailto:support@naraway.com" className="text-primary hover:underline">
+                support@naraway.com
+              </a>{" "}
+              for access, billing, or lead-quality questions.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-base font-semibold text-foreground">8. Changes</h2>
+            <p>
+              Naraway may update these terms or the Marketplace features over time. Continued use after material changes
+              constitutes acceptance of the updated terms where permitted by law.
+            </p>
+          </section>
+
+          <p className="border-t border-border pt-5 text-xs italic">
+            This page describes how the platform is intended to operate. It has not been reviewed by legal counsel —
+            have it reviewed before relying on it for production commercial use.
+          </p>
+        </div>
+      </main>
+      <PublicFooter />
     </div>
   );
 }

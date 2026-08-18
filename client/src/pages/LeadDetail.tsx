@@ -114,6 +114,21 @@ export function LeadDetailPage() {
     },
     onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not save lead changes."), "error"),
   });
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!lead) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        const saved = draftFromLead(lead);
+        const dirty = (Object.keys(draft) as (keyof typeof draft)[]).some((key) => draft[key] !== saved[key]);
+        if (dirty && !updateMutation.isPending) updateMutation.mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lead, draft, updateMutation]);
+
   const assignMutation = useMutation({ mutationFn: (ownerId: string) => assignLead(id!, ownerId), onSuccess: () => { qc.invalidateQueries({ queryKey: ["lead", id] }); qc.invalidateQueries({ queryKey: ["lead-activities", id] }); showToast("Lead owner updated."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not assign lead."), "error") });
   const commentMutation = useMutation({ mutationFn: (body: string) => addLeadComment(id!, body), onSuccess: () => { setComment(""); qc.invalidateQueries({ queryKey: ["lead-comments", id] }); showToast("Comment added."); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not add comment."), "error") });
   const deleteMutation = useMutation({ mutationFn: () => deleteLead(id!), onSuccess: () => { showToast("Lead deleted."); navigate("/leads"); }, onError: (mutationError) => showToast(getErrorMessage(mutationError, "Could not delete lead."), "error") });
@@ -143,10 +158,11 @@ export function LeadDetailPage() {
   const savedDraft = draftFromLead(lead);
   const isDirty = (Object.keys(draft) as (keyof typeof draft)[]).some((key) => draft[key] !== savedDraft[key]);
   const isPinned = !!lead.ownerPinnedAt && Date.now() - new Date(lead.ownerPinnedAt).getTime() < 30 * 86_400_000;
+  const websiteUrl = lead.website && /^https?:\/\//i.test(lead.website) ? lead.website : lead.website ? `https://${lead.website}` : null;
 
   return <div className="grid gap-6 xl:grid-cols-3">
     <div className="space-y-4 xl:col-span-2">
-      <Card className="p-4 sm:p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-xl font-semibold">{lead.companyName}</h1><p className="text-sm text-muted-foreground">{lead.contactPerson}</p></div><div className="flex items-center gap-2"><Badge className={STATUS_COLORS[lead.status]}>{STATUS_LABELS[lead.status]}</Badge><Badge className={PRIORITY_COLORS[lead.priority]}>{lead.priority}</Badge>{lead.ownerId === user?.id && (
+      <Card className="p-4 sm:p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-xl font-semibold">{lead.companyName}</h1><p className="text-sm text-muted-foreground">{lead.contactPerson}</p>{(lead.phone || lead.email || websiteUrl) && <div className="mt-2 flex flex-wrap gap-2">{lead.phone && <a href={`tel:${lead.phone}`} className="inline-flex items-center rounded-md bg-muted px-3 py-1.5 text-sm font-medium hover:bg-border">Call</a>}{lead.email && <a href={`mailto:${lead.email}`} className="inline-flex items-center rounded-md bg-muted px-3 py-1.5 text-sm font-medium hover:bg-border">Email</a>}{websiteUrl && <a href={websiteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-md bg-muted px-3 py-1.5 text-sm font-medium hover:bg-border">Website</a>}</div>}</div><div className="flex items-center gap-2"><Badge className={STATUS_COLORS[lead.status]}>{STATUS_LABELS[lead.status]}</Badge><Badge className={PRIORITY_COLORS[lead.priority]}>{lead.priority}</Badge>{lead.ownerId === user?.id && (
         <Button variant="secondary" onClick={() => pinMutation.mutate(!isPinned)} disabled={pinMutation.isPending}>
           {isPinned ? "Saved by you" : "Save for myself"}
         </Button>
@@ -173,21 +189,9 @@ export function LeadDetailPage() {
         {canManage && <div className="mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-end"><div className="w-full sm:max-w-xs"><Label>Owner</Label><Select value={lead.ownerId ?? ""} onChange={(event) => event.target.value && assignMutation.mutate(event.target.value)} disabled={assignMutation.isPending}><option value="">Unassigned</option>{usersData?.items.filter((item) => item.role === "EXECUTIVE" && item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.employeeId})</option>)}</Select></div><Button variant="destructive" className="sm:ml-auto" onClick={() => setConfirmDelete(true)}>Delete lead</Button></div>}
       </Card>
 
-      {lead.convertedFromLead && (
-        <p className="text-xs text-muted-foreground">
-          ↳ Routed from{" "}
-          <Link to={`/leads/${lead.convertedFromLead.id}`} className="text-primary underline">
-            {lead.convertedFromLead.companyName} ({lead.convertedFromLead.service?.name ?? "no service"})
-          </Link>
-        </p>
-      )}
-
-      {(lead.status === "WON" || lead.status === "LOST") && (
-        <CrossSellCard lead={lead} services={services} onOffer={(serviceId) => routeMutation.mutate(serviceId)} isPending={routeMutation.isPending} />
-      )}
-
       <Card className="p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-semibold">Log a Call</h2>
+        <h2 className="mb-1 text-sm font-semibold">Log a Call</h2>
+        <p className="mb-3 text-xs text-muted-foreground">Call or email above, then log the outcome and next follow-up here.</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Select value={callOutcome} onChange={(event) => setCallOutcome(event.target.value as CallOutcome)} className="sm:max-w-[200px]">
             <option value="">Outcome...</option>
@@ -207,6 +211,20 @@ export function LeadDetailPage() {
           </div>
         )}
       </Card>
+
+      {lead.convertedFromLead && (
+        <p className="text-xs text-muted-foreground">
+          ↳ Routed from{" "}
+          <Link to={`/leads/${lead.convertedFromLead.id}`} className="text-primary underline">
+            {lead.convertedFromLead.companyName} ({lead.convertedFromLead.service?.name ?? "no service"})
+          </Link>
+        </p>
+      )}
+
+      {(lead.status === "WON" || lead.status === "LOST") && (
+        <CrossSellCard lead={lead} services={services} onOffer={(serviceId) => routeMutation.mutate(serviceId)} isPending={routeMutation.isPending} />
+      )}
+
       <Card className="p-4 sm:p-5"><h2 className="mb-3 text-sm font-semibold">Comments</h2><div className="mb-4 space-y-3">{comments?.map((item) => <div key={item.id} className="rounded-md bg-muted/50 p-3 text-sm"><div className="mb-1 flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between"><span className="font-medium text-foreground">{item.userName} ({item.employeeId})</span><span>{new Date(item.createdAt).toLocaleString()}</span></div>{item.body}</div>)}{comments?.length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}</div><div className="flex flex-col gap-2 sm:flex-row"><Textarea aria-label="New comment" placeholder="Add a comment for the team..." value={comment} onChange={(event) => setComment(event.target.value)} rows={2}/><Button onClick={() => comment.trim() && commentMutation.mutate(comment.trim())} disabled={!comment.trim() || commentMutation.isPending}>{commentMutation.isPending ? "Posting..." : "Post"}</Button></div></Card>
     </div>
     <Card className="h-fit p-4 sm:p-5"><h2 className="mb-3 text-sm font-semibold">Activity Timeline</h2><ol className="space-y-3 border-l border-border pl-4">{activities?.map((item) => <li key={item.id} className="text-sm"><div className="font-medium">{item.action.replace(/_/g, " ")}</div>{item.notes && <div className="text-muted-foreground">{item.notes}</div>}<div className="text-xs text-muted-foreground">{item.user ? `${item.user.name} - ` : ""}{new Date(item.timestamp).toLocaleString()}</div></li>)}{activities?.length === 0 && <li className="text-sm text-muted-foreground">No activity recorded.</li>}</ol></Card>
