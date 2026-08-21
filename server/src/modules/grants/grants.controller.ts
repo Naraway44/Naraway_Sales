@@ -19,6 +19,7 @@ import {
   saveStartups,
 } from "./grants.engine";
 import { backfillNotifiedWithoutSending } from "./grants.repo";
+import { fromAddress, smtpConfigured, verifySmtp } from "./grants.mailer";
 import type { ClientPlan, StartupClient } from "./grants.types";
 
 export const grantsRouter = Router();
@@ -213,6 +214,22 @@ grantsRouter.post(
   asyncHandler(async (_req, res) => {
     const suppressed = await backfillNotifiedWithoutSending();
     res.json({ ok: true, suppressed });
+  })
+);
+
+/** Checks Zoho credentials without sending anything. */
+grantsRouter.get(
+  "/mail-status",
+  asyncHandler(async (_req, res) => {
+    const configured = smtpConfigured();
+    const verified = configured ? await verifySmtp() : null;
+    res.json({
+      deliveryEnabled: process.env.GRANTS_NOTIFY_ENABLED === "true",
+      transport: process.env.GRANTS_NOTIFY_WEBHOOK ? "webhook" : configured ? "smtp" : "none (simulated)",
+      smtpConfigured: configured,
+      from: fromAddress(),
+      verify: verified,
+    });
   })
 );
 

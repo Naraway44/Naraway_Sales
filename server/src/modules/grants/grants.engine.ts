@@ -10,6 +10,7 @@
 import Papa from "papaparse";
 import ExcelJS from "exceljs";
 import * as cheerio from "cheerio";
+import { sendMail, smtpConfigured } from "./grants.mailer";
 import type {
   ClientPlan,
   Instrument,
@@ -1616,20 +1617,22 @@ async function sendNotifyEmail(opts: {
       return { ok: false, mode: "failed", detail: e instanceof Error ? e.message : String(e) };
     }
   }
+  if (smtpConfigured()) {
+    // Real Zoho SMTP send. Client cohorts ride in bcc so recipients never see each other.
+    const r = await sendMail({ to: opts.to, bcc: opts.bcc, subject: opts.subject, text: opts.text });
+    return r;
+  }
   if (host) {
-    // Lightweight SMTP send via Node net — prefer webhook/Resend in production.
-    // For now mark as failed with hint unless GRANTS_SMTP_USER is also set and we use a simple API.
-    // Use GRANTS_NOTIFY_WEBHOOK (Resend/SendGrid) for real delivery; host alone = simulated with note.
     return {
-      ok: true,
-      mode: "simulated",
-      detail: `SMTP host set (${host}) but use GRANTS_NOTIFY_WEBHOOK for reliable send. Would email: ${opts.to.join(", ")}`,
+      ok: false,
+      mode: "failed",
+      detail: `GRANTS_SMTP_HOST set (${host}) but USER/PASS missing — cannot authenticate.`,
     };
   }
   return {
     ok: true,
     mode: "simulated",
-    detail: `SIMULATED email → ${opts.to.join(", ")} (set GRANTS_NOTIFY_WEBHOOK or SMTP to send for real)`,
+    detail: `SIMULATED email → ${opts.to.join(", ")} (no transport configured: set Zoho SMTP or a webhook)`,
   };
 }
 
