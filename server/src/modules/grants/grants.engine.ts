@@ -1582,6 +1582,8 @@ function recipientsForMatch(m: MatchRow, su: StartupClient | undefined): string[
 
 async function sendNotifyEmail(opts: {
   to: string[];
+  /** Client cohorts go here — never in `to`, so recipients cannot see each other. */
+  bcc?: string[];
   subject: string;
   text: string;
 }): Promise<{ ok: boolean; mode: "sent" | "simulated" | "failed"; detail: string }> {
@@ -1590,7 +1592,7 @@ async function sendNotifyEmail(opts: {
     return {
       ok: true,
       mode: "simulated",
-      detail: `SIMULATED (GRANTS_NOTIFY_ENABLED not true) → ${opts.to.join(", ")}`,
+      detail: `SIMULATED (GRANTS_NOTIFY_ENABLED not true) → to=${opts.to.join(", ")} bcc=${(opts.bcc ?? []).length}`,
     };
   }
   const webhook = process.env.GRANTS_NOTIFY_WEBHOOK?.trim();
@@ -1600,10 +1602,16 @@ async function sendNotifyEmail(opts: {
       const res = await fetch(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: opts.to, subject: opts.subject, text: opts.text, from: process.env.GRANTS_SMTP_FROM || "grants@naraway.com" }),
+        body: JSON.stringify({
+          to: opts.to,
+          bcc: opts.bcc ?? [],
+          subject: opts.subject,
+          text: opts.text,
+          from: process.env.GRANTS_SMTP_FROM || "grants@naraway.com",
+        }),
       });
       if (!res.ok) return { ok: false, mode: "failed", detail: `webhook HTTP ${res.status}` };
-      return { ok: true, mode: "sent", detail: `webhook → ${opts.to.join(", ")}` };
+      return { ok: true, mode: "sent", detail: `webhook → to=${opts.to.join(", ")} bcc=${(opts.bcc ?? []).length}` };
     } catch (e) {
       return { ok: false, mode: "failed", detail: e instanceof Error ? e.message : String(e) };
     }
@@ -1625,87 +1633,164 @@ async function sendNotifyEmail(opts: {
   };
 }
 
+/**
+ * Sends one email per scheme per track, not one per match.
+ *
+ * With 10 new schemes and 100 active clients, per-match sending would be hundreds
+ * of emails. Grouping by scheme caps it at roughly one client mail + one team mail
+ * per scheme.
+ *
+ * Client cohorts go out BCC — recipients must never see each other. The To: line is
+ * always the team address, never a client, so a mistake cannot leak the client list.
+ */
 async function runNotifications(matches: MatchRow[]): Promise<{ sent: number; simulated: number }> {
   const startups = await deactivateExpiredPackages();
   const byId = new Map(startups.map((s) => [s.id, s]));
   const newLogs: NotifyLog[] = [];
   let sent = 0;
   let simulated = 0;
-  let attempted = 0;
+  let emailsSent = 0;
   const updated = [...matches];
+
+  // Bucket pending matches by scheme, split into the two tracks.
+  type Cohort = { clients: MatchRow[]; team: MatchRow[] };
+  const bySchemeKey = new Map<string, Cohort>();
 
   for (const m of updated) {
     if (m.notifyStatus !== "pending") continue;
-    // Cap per run so a large match set cannot mass-mail in one cycle; the rest
-    // stay pending and go out next cycle.
-    if (attempted >= NOTIFY_MAX_PER_RUN) break;
-    // Filed apps are done — never (re)notify in list
+    // Filed apps are done — never (re)notify.
     if (m.filingStatus === "filed") {
       m.notifyStatus = "skipped";
       continue;
     }
     const su = byId.get(m.startupId);
-    // Inactive or package end date passed → stop all notification emails
+    // Inactive client or package end date passed → no further emails.
     if (!isStartupEligibleForNotify(su)) {
       m.notifyStatus = "skipped";
       continue;
     }
-    const to = recipientsForMatch(m, su);
-    if (!to.length) {
-      m.notifyStatus = "skipped";
+
+    const bucket = bySchemeKey.get(m.schemeKey) ?? { clients: [], team: [] };
+    // A BOTH-plan client lands in both cohorts: they get the alert, team gets the filing task.
+    if (isNotifyPackage(m.plan) && su?.notifyEmails?.length) bucket.clients.push(m);
+    if (isAppPackage(m.plan)) bucket.team.push(m);
+    if (!bucket.clients.includes(m) && !bucket.team.includes(m)) {
+      m.notifyStatus = "skipped"; // no usable recipient
       continue;
     }
+    bySchemeKey.set(m.schemeKey, bucket);
+  }
 
-    const kind = m.isStandard ? "Standard scheme" : "New scheme match";
-    const teamAction = isAppPackage(m.plan);
-    const subject = teamAction
-      ? `[Grants apply] ${m.startupName} — ${m.schemeTitle}`
-      : `[Grant alert] ${m.startupName} — ${m.schemeTitle}`;
-    const text = [
-      kind,
-      `Startup: ${m.startupName}`,
-      `Plan: ${m.plan}`,
-      `Scheme: ${m.schemeTitle}`,
-      `Window: ${m.windowType} · ${m.instrument || ""}`,
-      "",
-      m.details,
-      "",
-      `Apply link: ${m.applyUrl}`,
-      `Official details: ${m.officialUrl}`,
-      "",
-      teamAction
-        ? "Action for team@naraway.com: open Apply link and file for this startup. Mark filed on the Grants Desk when done."
-        : "Action: client notification only (no team filing package).",
-      `Desk: ${APP_BASE_URL}/grants#startup/${encodeURIComponent(m.startupId)}`,
-    ].join("\n");
+  const markCohort = (rows: MatchRow[], mode: "sent" | "simulated" | "failed", at: string) => {
+    for (const m of rows) {
+      m.notifiedAt = at;
+      // A failed send stays pending so the next cycle retries it.
+      m.notifyStatus = mode === "sent" ? "sent" : mode === "failed" ? "pending" : "simulated";
+    }
+    if (mode === "sent") sent += rows.length;
+    else if (mode === "simulated") simulated += rows.length;
+  };
 
-    attempted++;
-    const result = await sendNotifyEmail({ to, subject, text });
-    const at = new Date().toISOString();
-    m.notifiedAt = at;
-    m.notifyStatus = result.mode === "sent" ? "sent" : result.mode === "failed" ? "pending" : "simulated";
-    if (result.mode === "sent") sent++;
-    else if (result.mode === "simulated") simulated++;
+  for (const [, cohort] of bySchemeKey) {
+    // Cap counts EMAILS, not matches — the whole point is that one email covers many clients.
+    if (emailsSent >= NOTIFY_MAX_PER_RUN) break;
 
-    newLogs.push({
-      id: `n_${Date.now()}_${m.id}`,
-      matchId: m.id,
-      startupId: m.startupId,
-      startupName: m.startupName,
-      schemeTitle: m.schemeTitle,
-      emails: to,
-      plan: m.plan,
-      at,
-      applyUrl: m.applyUrl,
-      officialUrl: m.officialUrl,
-      status: result.mode === "failed" ? "failed" : result.mode,
-      detail: `${result.detail}\n\n${text}`,
-    });
+    // --- Client cohort: one mail, everyone BCC'd ---
+    if (cohort.clients.length) {
+      const head = cohort.clients[0];
+      const bcc = [
+        ...new Set(
+          cohort.clients.flatMap((m) => byId.get(m.startupId)?.notifyEmails ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean)
+        ),
+      ];
+      if (bcc.length) {
+        const subject = `[Grant alert] ${head.schemeTitle}`;
+        const text = [
+          head.isStandard ? "Standard scheme" : "New scheme match",
+          `Scheme: ${head.schemeTitle}`,
+          `Window: ${head.windowType} · ${head.instrument || ""}`,
+          "",
+          head.details,
+          "",
+          `Apply link: ${head.applyUrl}`,
+          `Official details: ${head.officialUrl}`,
+          "",
+          "You are receiving this because this scheme matches your profile on the Naraway grants desk.",
+          "Confirm the current application window on the official page before applying.",
+        ].join("\n");
+
+        emailsSent++;
+        const result = await sendNotifyEmail({ to: [TEAM_NOTIFY_EMAIL], bcc, subject, text });
+        const at = new Date().toISOString();
+        markCohort(cohort.clients, result.mode, at);
+
+        newLogs.push({
+          id: `n_${Date.now()}_c_${head.schemeKey}`.slice(0, 120),
+          matchId: head.id,
+          startupId: head.startupId,
+          startupName: `${cohort.clients.length} client(s)`,
+          schemeTitle: head.schemeTitle,
+          emails: bcc,
+          plan: head.plan,
+          at,
+          applyUrl: head.applyUrl,
+          officialUrl: head.officialUrl,
+          status: result.mode === "failed" ? "failed" : result.mode,
+          detail: `${result.detail}\n\nBCC cohort of ${bcc.length}\n\n${text}`,
+        });
+      } else {
+        markCohort(cohort.clients, "simulated", new Date().toISOString());
+      }
+    }
+
+    if (emailsSent >= NOTIFY_MAX_PER_RUN) break;
+
+    // --- Team cohort: one internal digest naming every startup to file for ---
+    if (cohort.team.length) {
+      const head = cohort.team[0];
+      const subject = `[Grants apply] ${head.schemeTitle} — ${cohort.team.length} startup(s)`;
+      const text = [
+        `Scheme: ${head.schemeTitle}`,
+        `Window: ${head.windowType} · ${head.instrument || ""}`,
+        "",
+        head.details,
+        "",
+        "File for these startups:",
+        ...cohort.team.map((m) => `  - ${m.startupName} (${m.plan}) — ${APP_BASE_URL}/grants#startup/${encodeURIComponent(m.startupId)}`),
+        "",
+        `Apply link: ${head.applyUrl}`,
+        `Official details: ${head.officialUrl}`,
+        "",
+        "Mark each as filed on the Grants Desk when done.",
+      ].join("\n");
+
+      emailsSent++;
+      const result = await sendNotifyEmail({ to: [TEAM_NOTIFY_EMAIL], subject, text });
+      const at = new Date().toISOString();
+      markCohort(cohort.team, result.mode, at);
+
+      newLogs.push({
+        id: `n_${Date.now()}_t_${head.schemeKey}`.slice(0, 120),
+        matchId: head.id,
+        startupId: head.startupId,
+        startupName: `${cohort.team.length} startup(s)`,
+        schemeTitle: head.schemeTitle,
+        emails: [TEAM_NOTIFY_EMAIL],
+        plan: head.plan,
+        at,
+        applyUrl: head.applyUrl,
+        officialUrl: head.officialUrl,
+        status: result.mode === "failed" ? "failed" : result.mode,
+        detail: `${result.detail}\n\nTeam digest for ${cohort.team.length} startup(s)\n\n${text}`,
+      });
+    }
   }
 
   await saveMatches(updated);
   await appendNotifications(newLogs);
-  console.log(`[notify] sent=${sent} simulated=${simulated} team=${TEAM_NOTIFY_EMAIL}`);
+  console.log(
+    `[notify] emails=${emailsSent} matchesSent=${sent} matchesSimulated=${simulated} team=${TEAM_NOTIFY_EMAIL}`
+  );
   return { sent, simulated };
 }
 
