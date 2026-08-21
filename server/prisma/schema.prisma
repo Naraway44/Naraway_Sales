@@ -215,16 +215,16 @@ model User {
   teamId String? @map("team_id")
   team   Team?   @relation(fields: [teamId], references: [id])
 
-  ownedLeads           Lead[]         @relation("LeadOwner")
-  createdLeads         Lead[]         @relation("LeadCreatedBy")
-  activities           LeadActivity[]
-  auditLogs            AuditLog[]
-  sessions             UserSession[]
-  leadViews            LeadView[]
-  idleFlags            IdleFlag[]
-  createdResources     Resource[]     @relation("ResourceCreatedBy")
-  leadRequests         LeadRequest[]  @relation("LeadRequestUser")
-  resolvedLeadRequests LeadRequest[]  @relation("LeadRequestResolvedBy")
+  ownedLeads               Lead[]               @relation("LeadOwner")
+  createdLeads             Lead[]               @relation("LeadCreatedBy")
+  activities               LeadActivity[]
+  auditLogs                AuditLog[]
+  sessions                 UserSession[]
+  leadViews                LeadView[]
+  idleFlags                IdleFlag[]
+  createdResources         Resource[]           @relation("ResourceCreatedBy")
+  leadRequests             LeadRequest[]        @relation("LeadRequestUser")
+  resolvedLeadRequests     LeadRequest[]        @relation("LeadRequestResolvedBy")
   createdBuyers            Buyer[]              @relation("BuyerCreatedBy")
   approvedMarketplaceLeads MarketplaceLead[]    @relation("MarketplaceLeadApprovedBy")
   resolvedAccessRequests   BuyerAccessRequest[] @relation("BuyerAccessRequestResolvedBy")
@@ -279,9 +279,9 @@ model IdleFlag {
 }
 
 model Lead {
-  id            String  @id @default(cuid())
-  companyName   String  @map("company_name")
-  contactPerson String? @map("contact_person")
+  id            String       @id @default(cuid())
+  companyName   String       @map("company_name")
+  contactPerson String?      @map("contact_person")
   phone         String?
   email         String?
   website       String?
@@ -447,13 +447,13 @@ model Buyer {
 // just gives them a queue of vetted-looking leads to review and action instead of a
 // public signup form that hands out access with no oversight.
 model BuyerAccessRequest {
-  id      String                    @id @default(cuid())
+  id      String                   @id @default(cuid())
   name    String
   company String?
   email   String
   phone   String?
   message String?
-  status  BuyerAccessRequestStatus  @default(PENDING)
+  status  BuyerAccessRequestStatus @default(PENDING)
 
   createdAt  DateTime  @default(now()) @map("created_at")
   resolvedAt DateTime? @map("resolved_at")
@@ -474,10 +474,10 @@ model BuyerAccessRequest {
 // LISTED -> PENDING (claimed mid-checkout) -> SOLD (payment confirmed), or PENDING ->
 // LISTED again if the checkout is abandoned (see releaseAbandonedCheckouts).
 model MarketplaceLead {
-  id             String  @id @default(cuid())
-  originalLeadId String  @map("original_lead_id")
-  companyName    String  @map("company_name")
-  contactPerson  String? @map("contact_person")
+  id             String       @id @default(cuid())
+  originalLeadId String       @map("original_lead_id")
+  companyName    String       @map("company_name")
+  contactPerson  String?      @map("contact_person")
   phone          String?
   email          String?
   industry       String?
@@ -485,14 +485,14 @@ model MarketplaceLead {
   city           String?
   state          String?
   service        String?
-  lostReason     String? @map("lost_reason")
+  lostReason     String?      @map("lost_reason")
 
   expectedDealValue Decimal? @map("expected_deal_value") @db.Decimal(14, 2)
 
   resaleStatus MarketplaceLeadStatus @default(LISTED) @map("resale_status")
 
-  approvedById String   @map("approved_by_id")
-  approvedBy   User     @relation("MarketplaceLeadApprovedBy", fields: [approvedById], references: [id])
+  approvedById  String   @map("approved_by_id")
+  approvedBy    User     @relation("MarketplaceLeadApprovedBy", fields: [approvedById], references: [id])
   // Founder/Manager can override the standard volume-tier price for a specific lead at
   // approval time (a lead lost on budget/timing is worth more than one lost because the
   // company shut down) — the flat rate card can't capture that variance on its own.
@@ -518,4 +518,140 @@ model MarketplaceLead {
   @@index([gatewayOrderId])
   @@index([buyerId])
   @@map("marketplace_leads")
+}
+
+// --- Gov grants engine (separate product surface from Sales OS CRM / marketplace) ---
+// Runs as an in-process background loop; persisted here so deploys don't reset state.
+// Ephemeral disk was the old failure mode: notify status resets => clients re-emailed.
+
+enum GrantRecurrence {
+  RECURRING // cycles reopen (SISFS, MUDRA) — a passed endDate closes the cycle, not the scheme
+  ONE_TIME // single call (Genesis EIR) — a passed endDate means genuinely dead
+}
+
+enum GrantPlan {
+  NOTIFICATION
+  FULL_APPLICATION
+  BOTH
+}
+
+model GrantScheme {
+  id             String          @id @default(cuid())
+  externalKey    String          @unique @map("external_key")
+  title          String
+  category       String          @default("")
+  whoItsFor      String          @default("") @map("who_its_for")
+  serviceTrack   String          @default("") @map("service_track")
+  windowType     String          @default("OPEN_CLOSE") @map("window_type")
+  recurrence     GrantRecurrence @default(RECURRING)
+  industries     String          @default("")
+  instrument     String          @default("")
+  stageFit       String          @default("") @map("stage_fit")
+  audienceTags   String          @default("") @map("audience_tags")
+  level          String          @default("")
+  state          String          @default("")
+  ministry       String          @default("")
+  summary        String          @default("") @db.Text
+  eligibility    String          @default("") @db.Text
+  benefits       String          @default("") @db.Text
+  statusNote     String          @default("") @map("status_note") @db.Text
+  startDate      String          @default("") @map("start_date")
+  endDate        String          @default("") @map("end_date")
+  /// Max company age the scheme allows, in years. "" = no stated limit.
+  maxAgeYears    String          @default("") @map("max_age_years")
+  applyUrl       String          @default("") @map("apply_url")
+  sourceUrl      String          @map("source_url")
+  discoveredFrom String          @default("") @map("discovered_from")
+  /// Crawl cycle this row was last seen in — drives retirement of vanished links.
+  lastSeenCycle  Int             @default(0) @map("last_seen_cycle")
+  isActive       Boolean         @default(true) @map("is_active")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  matches GrantMatch[]
+
+  @@index([isActive])
+  @@index([discoveredFrom])
+  @@map("grant_schemes")
+}
+
+model GrantStartup {
+  id                String    @id
+  name              String
+  industries        String[]  @default([])
+  states            String[]  @default([])
+  stage             String    @default("Any")
+  /// Date of incorporation (YYYY-MM-DD). Age derived at match time so it never goes stale.
+  incorporationDate String    @default("") @map("incorporation_date")
+  dpiitRecognised   Boolean   @default(false) @map("dpiit_recognised")
+  audienceTags      String[]  @default([]) @map("audience_tags")
+  notifyEmails      String[]  @default([]) @map("notify_emails")
+  plan              GrantPlan @default(NOTIFICATION)
+  packageStartDate  String    @default("") @map("package_start_date")
+  packageEndDate    String    @default("") @map("package_end_date")
+  active            Boolean   @default(true)
+  notes             String    @default("") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  matches       GrantMatch[]
+  notifications GrantNotifyLog[]
+
+  @@map("grant_startups")
+}
+
+model GrantMatch {
+  id           String       @id
+  startupId    String       @map("startup_id")
+  startup      GrantStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  schemeKey    String       @map("scheme_key")
+  scheme       GrantScheme  @relation(fields: [schemeKey], references: [externalKey], onDelete: Cascade)
+  plan         GrantPlan
+  score        Int
+  reasons      String       @default("") @db.Text
+  details      String       @default("") @db.Text
+  applyUrl     String       @default("") @map("apply_url")
+  officialUrl  String       @default("") @map("official_url")
+  isStandard   Boolean      @default(false) @map("is_standard")
+  /// pending | sent | simulated | skipped
+  notifyStatus String       @default("pending") @map("notify_status")
+  /// none | queued | in_progress | filed | skipped
+  filingStatus String       @default("none") @map("filing_status")
+  matchedAt    DateTime     @default(now()) @map("matched_at")
+  notifiedAt   DateTime?    @map("notified_at")
+
+  @@unique([startupId, schemeKey])
+  @@index([notifyStatus])
+  @@index([filingStatus])
+  @@map("grant_matches")
+}
+
+model GrantNotifyLog {
+  id          String       @id @default(cuid())
+  matchId     String       @map("match_id")
+  startupId   String       @map("startup_id")
+  startup     GrantStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  startupName String       @map("startup_name")
+  schemeTitle String       @map("scheme_title")
+  emails      String[]     @default([])
+  plan        GrantPlan
+  /// sent | simulated | failed
+  status      String
+  detail      String       @default("") @db.Text
+  at          DateTime     @default(now())
+
+  @@index([startupId])
+  @@index([at])
+  @@map("grant_notify_logs")
+}
+
+/// Single-row engine state: cycle counter, last sync, recent errors.
+model GrantEngineState {
+  id         Int       @id @default(1)
+  cycle      Int       @default(0)
+  syncedAt   DateTime? @map("synced_at")
+  lastErrors String[]  @default([]) @map("last_errors")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("grant_engine_state")
 }

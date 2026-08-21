@@ -16,6 +16,7 @@ import { attendanceRouter } from "@/modules/attendance/attendance.controller";
 import { buyerAuthRouter } from "@/modules/buyerAuth/buyerAuth.controller";
 import { buyersRouter } from "@/modules/buyers/buyers.controller";
 import { marketplaceRouter } from "@/modules/marketplace/marketplace.controller";
+import { grantsRouter } from "@/modules/grants/grants.controller";
 
 export function createApp() {
   const app = express();
@@ -63,6 +64,8 @@ export function createApp() {
   app.use("/api/v1/buyer-auth", buyerAuthRouter);
   app.use("/api/v1/buyers", buyersRouter);
   app.use("/api/v1/marketplace", marketplaceRouter);
+  // Gov grants desk — separate product surface from CRM/marketplace; staff-only.
+  app.use("/api/v1/grants", grantsRouter);
 
   app.use(errorHandler);
 

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Naraway Grants Desk</title>
+<style>
+  :root { --bg:#0b1220; --card:#121a2b; --line:#243049; --text:#e8eefc; --muted:#9aa8c7; --accent:#5b8cff; --ok:#3ddc97; --warn:#ffb020; --danger:#ff6b7a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 20px; border-bottom:1px solid var(--line); display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; position:sticky; top:0; background:rgba(11,18,32,.97); z-index:5; }
+  h1 { margin:0; font-size:18px; }
+  h2 { margin:0 0 10px; font-size:16px; }
+  h3 { margin:16px 0 8px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .muted { color:var(--muted); font-size:13px; }
+  .btn { background:#1a2740; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; font-size:13px; text-decoration:none; display:inline-block; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.ok { background:#1b3d32; border-color:#2a6b55; color:var(--ok); }
+  .btn.warn { background:#3d3018; border-color:#6b5220; color:var(--warn); }
+  .btn.danger { background:#3d1820; border-color:#6b2030; color:var(--danger); }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  input, select, textarea { background:#0b1220; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; width:100%; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:720px){ .form-grid{ grid-template-columns:1fr; } }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:11px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; }
+  tr.clickable { cursor:pointer; }
+  tr.clickable:hover { background:#1a2740; }
+  .tag { display:inline-block; padding:2px 7px; border-radius:999px; background:#1a2740; color:#c9d7ff; margin:1px; font-size:11px; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; }
+  .pill.app { border-color:#2a6b55; color:var(--ok); }
+  .pill.notify { border-color:#6b5220; color:var(--warn); }
+  a { color:#9ec1ff; }
+  .empty { color:var(--muted); padding:14px 0; }
+  .card-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .hidden { display:none !important; }
+  .copy-box { background:#0b1220; border:1px dashed var(--line); border-radius:8px; padding:10px; font-size:12px; white-space:pre-wrap; line-height:1.45; margin-top:8px; }
+  .statline { font-size:12px; color:var(--muted); }
+  .statline b { color:var(--text); font-weight:600; }
+  .nums { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); }
+  .nums b { color:var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Naraway Grants Desk</h1>
+    <div class="muted">One list of startups · email notify is automatic · open a startup to apply & track</div>
+  </div>
+  <a class="btn" href="/export.xlsx">Excel</a>
+</header>
+<main id="app"></main>
+<script>
+let data = { startups:[], matches:[], notifications:[], meta:{} };
+let q = '';
+let showAdd = false;
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function tags(arr){ return (arr||[]).map(i=>'<span class="tag">'+esc(i)+'</span>').join(' '); }
+function isAppPlan(p){ return p==='FULL_APPLICATION' || p==='BOTH'; }
+function categoryLabel(p){
+  if (p==='BOTH') return 'Notification + Application';
+  if (p==='FULL_APPLICATION') return 'Application';
+  return 'Notification';
+}
+function route(){
+  const h = (location.hash||'#').slice(1);
+  if (h.startsWith('startup/')) return { view:'profile', id: decodeURIComponent(h.slice(8)) };
+  return { view:'list', id:'' };
+}
+
+async function load(){
+  data = await (await fetch('/api/desk')).json();
+  render();
+}
+
+function openApply(id, plan){
+  if (!isAppPlan(plan)) return 0;
+  return data.matches.filter(m => m.startupId===id && (m.filingStatus==='queued'||m.filingStatus==='in_progress')).length;
+}
+function filedCount(id){
+  return data.matches.filter(m => m.startupId===id && m.filingStatus==='filed').length;
+}
+function mailsSent(id){
+  return (data.notifications||[]).filter(n => n.startupId===id && (n.status==='sent'||n.status==='simulated')).length;
+}
+function pendingNotify(id){
+  return data.matches.filter(m => m.startupId===id && m.notifyStatus==='pending' && m.filingStatus!=='filed').length;
+}
+function matchScoreSum(id){
+  return data.matches.filter(m => m.startupId===id && (m.filingStatus==='queued'||m.filingStatus==='in_progress'))
+    .reduce((a,m)=>a+(m.score||0),0);
+}
+
+/** Application / Both on top; notification-only at bottom. Within group: more open application matches first. */
+function sortedStartups(){
+  const qq = q.toLowerCase();
+  return data.startups
+    .filter(s => {
+      if (!qq) return true;
+      const blob = [s.name,s.plan,s.packageStartDate,s.packageEndDate,(s.industries||[]).join(' '),(s.states||[]).join(' '),(s.notifyEmails||[]).join(' '),s.notes].join(' ').toLowerCase();
+      return blob.includes(qq);
+    })
+    .slice()
+    .sort((a,b) => {
+      const aApp = isAppPlan(a.plan) ? 1 : 0;
+      const bApp = isAppPlan(b.plan) ? 1 : 0;
+      if (bApp !== aApp) return bApp - aApp;
+      const aOpen = openApply(a.id, a.plan);
+      const bOpen = openApply(b.id, b.plan);
+      if (bOpen !== aOpen) return bOpen - aOpen;
+      return matchScoreSum(b.id) - matchScoreSum(a.id) || a.name.localeCompare(b.name);
+    });
+}
+
+function copyText(s){
+  const lines = [
+    s.name,
+    'ID: '+s.id,
+    'Category: '+categoryLabel(s.plan)+' ('+s.plan+')',
+    'Package: '+(s.packageStartDate||'—')+' → '+(s.packageEndDate||'—'),
+    'Industries: '+(s.industries||[]).join(', '),
+    'States: '+(s.states||[]).join(', '),
+    'Stage: '+(s.stage||''),
+    'DPIIT: '+(s.dpiitRecognised?'Yes':'No'),
+    'Client emails: '+((s.notifyEmails||[]).join(', ')||'—'),
+    'Audience: '+((s.audienceTags||[]).join(', ')||'—'),
+    'Notes: '+(s.notes||'—'),
+    'Open to apply: '+openApply(s.id,s.plan),
+    'Applications filled: '+filedCount(s.id),
+    'Notifications sent: '+mailsSent(s.id),
+    'Pending email notifies: '+pendingNotify(s.id),
+  ];
+  return lines.join('\n');
+}
+
+function renderList(){
+  const rows = sortedStartups();
+  return '<div class="panel"><div class="row"><h2 style="margin:0">Startups</h2>'+
+    '<button class="btn primary" onclick="showAdd=!showAdd; render()">'+(showAdd?'Close':'＋ Add startup')+'</button></div>'+
+    '<p class="muted">Click a name for full details. Application packages on top; notification-only at the bottom. Past package end date → auto inactive, no more emails.</p>'+
+    '<input placeholder="Search…" value="'+esc(q)+'" oninput="q=this.value; render()" style="margin-bottom:12px"/>'+
+    '<div class="'+(showAdd?'':'hidden')+'">'+renderAddForm()+'</div>'+
+    (rows.length ? '<table><thead><tr>'+
+      '<th>Startup</th><th>Start</th><th>End</th><th>Category</th><th>Open</th><th>Filled</th><th>Mails</th><th>Pending</th><th></th>'+
+      '</tr></thead><tbody>'+
+      rows.map(s => {
+        const cat = categoryLabel(s.plan);
+        const pill = isAppPlan(s.plan) ? 'pill app' : 'pill notify';
+        return '<tr class="clickable" onclick="location.hash=\'startup/'+encodeURIComponent(s.id)+'\'">'+
+          '<td><strong>'+esc(s.name)+'</strong>'+(s.active?'':' <span class="muted">(off)</span>')+'</td>'+
+          '<td>'+esc(s.packageStartDate||'—')+'</td>'+
+          '<td>'+esc(s.packageEndDate||'—')+'</td>'+
+          '<td><span class="'+pill+'">'+esc(cat)+'</span></td>'+
+          '<td><b>'+openApply(s.id,s.plan)+'</b></td>'+
+          '<td><b>'+filedCount(s.id)+'</b></td>'+
+          '<td><b>'+mailsSent(s.id)+'</b></td>'+
+          '<td><b>'+pendingNotify(s.id)+'</b></td>'+
+          '<td><button class="btn danger" onclick="event.stopPropagation(); delStartup(\''+esc(s.id)+'\')">Delete</button></td>'+
+          '</tr>';
+      }).join('')+
+      '</tbody></table>' : '<div class="empty">No startups yet. Add one.</div>')+
+    '</div>';
+}
+
+function renderAddForm(){
+  return '<form class="panel" style="background:#0b1220" onsubmit="return saveStartup(event)">'+
+    '<h3 style="margin-top:0">Add startup</h3>'+
+    '<div class="form-grid">'+
+    '<div><label>Name *</label><input name="name" required/></div>'+
+    '<div><label>ID (optional)</label><input name="id" placeholder="auto"/></div>'+
+    '<div><label>Package start</label><input name="packageStartDate" type="date"/></div>'+
+    '<div><label>Package end</label><input name="packageEndDate" type="date"/></div>'+
+    '<div><label>Category / plan</label><select name="plan"><option value="NOTIFICATION">Notification only</option><option value="FULL_APPLICATION">Application</option><option value="BOTH" selected>Notification + Application</option></select></div>'+
+    '<div><label>Stage</label><select name="stage"><option>Idea/PoC</option><option>Prototype</option><option>Early revenue</option><option>Growth</option><option>Any</option></select></div>'+
+    '<div><label>Industries (comma)</label><input name="industries" placeholder="Biotech, ICT/AI"/></div>'+
+    '<div><label>States (comma)</label><input name="states" placeholder="Karnataka"/></div>'+
+    '<div><label>Client emails (comma)</label><input name="emails" placeholder="founder@co.com"/></div>'+
+    '<div><label>Audience tags</label><input name="audience"/></div>'+
+    '<div><label>DPIIT</label><select name="dpiit"><option value="true">Yes</option><option value="false">No</option></select></div>'+
+    '<div><label>Active</label><select name="active"><option value="true">Yes</option><option value="false">No</option></select></div>'+
+    '<div style="grid-column:1/-1"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>'+
+    '</div>'+
+    '<div class="card-actions"><button class="btn primary" type="submit">Save · rematch · auto email</button></div>'+
+    '<p class="muted">Application packages email <b>team@naraway.com</b> automatically. Notification package emails the client list.</p>'+
+    '</form>';
+}
+
+function applyCard(m){
+  return '<div class="panel" style="padding:12px">'+
+    (m.isNew?'<span class="tag">NEW</span> ':'')+(m.isStandard?'<span class="tag">STANDARD</span> ':'')+
+    '<span class="pill">'+esc(m.windowType)+'</span> <span class="pill">'+esc(m.instrument||'')+'</span>'+
+    '<div style="margin-top:8px"><strong>'+esc(m.schemeTitle)+'</strong></div>'+
+    '<p class="muted" style="margin:8px 0">'+esc(m.details||'')+'</p>'+
+    '<div class="card-actions">'+
+    '<a class="btn primary" target="_blank" rel="noopener" href="'+esc(m.applyUrl)+'">Apply link</a>'+
+    '<a class="btn" target="_blank" rel="noopener" href="'+esc(m.officialUrl||m.applyUrl)+'">Official details</a>'+
+    '<button class="btn warn" onclick="setFiling(\''+m.id+'\',\'in_progress\')">In progress</button>'+
+    '<button class="btn ok" onclick="setFiling(\''+m.id+'\',\'filed\')">Mark done</button>'+
+    '</div></div>';
+}
+
+function renderProfile(id){
+  const s = data.startups.find(x=>x.id===id);
+  if (!s) return '<div class="panel empty">Not found. <button class="btn" onclick="location.hash=\'\'">Back</button></div>';
+  const open = data.matches.filter(m => m.startupId===s.id && isAppPlan(s.plan) && (m.filingStatus==='queued'||m.filingStatus==='in_progress'))
+    .sort((a,b)=> Number(b.isNew)-Number(a.isNew) || Number(b.isStandard)-Number(a.isStandard) || b.score-a.score);
+  const done = data.matches.filter(m => m.startupId===s.id && m.filingStatus==='filed');
+  const mails = (data.notifications||[]).filter(n=>n.startupId===s.id).slice(0,60);
+  return '<div class="panel"><button class="btn" onclick="location.hash=\'\'">← Startups</button>'+
+    '<div class="row" style="margin-top:12px"><div><h2 style="margin:0">'+esc(s.name)+'</h2>'+
+    '<div class="muted"><span class="'+(isAppPlan(s.plan)?'pill app':'pill notify')+'">'+esc(categoryLabel(s.plan))+'</span> · Package '+esc(s.packageStartDate||'—')+' → '+esc(s.packageEndDate||'—')+'</div></div>'+
+    '<button class="btn danger" onclick="delStartup(\''+esc(s.id)+'\')">Delete</button></div>'+
+    '<div class="copy-box">'+esc(copyText(s))+'</div>'+
+    '<div class="statline" style="margin-top:10px">Open apply <b>'+open.length+'</b> · Filled <b>'+done.length+'</b> · Mails sent <b>'+mailsSent(s.id)+'</b> · Pending notify <b>'+pendingNotify(s.id)+'</b></div></div>'+
+    (isAppPlan(s.plan)
+      ? '<div class="panel"><h3>Open to apply (hidden once marked done)</h3>'+(open.length? open.map(applyCard).join('') : '<div class="empty">Nothing open.</div>')+'</div>'
+      : '<div class="panel muted">Notification-only package — no team filing queue. Client gets automatic emails.</div>')+
+    '<div class="panel"><h3>Applications filled</h3>'+(done.length? '<table><thead><tr><th>Scheme</th><th>Links</th></tr></thead><tbody>'+
+      done.map(m=>'<tr><td>'+esc(m.schemeTitle)+'</td><td><a target="_blank" href="'+esc(m.applyUrl)+'">Apply</a> · <a target="_blank" href="'+esc(m.officialUrl||m.applyUrl)+'">Official</a></td></tr>').join('')+
+      '</tbody></table>' : '<div class="empty">None yet.</div>')+'</div>'+
+    '<div class="panel"><h3>Email history (automatic)</h3>'+(mails.length? '<table><thead><tr><th>When</th><th>Scheme</th><th>To</th><th>Status</th></tr></thead><tbody>'+
+      mails.map(n=>'<tr><td>'+esc((n.at||'').slice(0,19))+'</td><td>'+esc(n.schemeTitle)+'<div class="muted"><a target="_blank" href="'+esc(n.applyUrl||'#')+'">Apply</a> · <a target="_blank" href="'+esc(n.officialUrl||'#')+'">Official</a></div></td><td>'+esc((n.emails||[]).join(', '))+'</td><td>'+esc(n.status)+'</td></tr>').join('')+
+      '</tbody></table>' : '<div class="empty">No emails yet.</div>')+'</div>';
+}
+
+function render(){
+  const r = route();
+  document.getElementById('app').innerHTML = r.view==='profile' ? renderProfile(r.id) : renderList();
+}
+
+async function saveStartup(e){
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const body = {
+    id: String(f.get('id')||'').trim(),
+    name: String(f.get('name')||'').trim(),
+    packageStartDate: String(f.get('packageStartDate')||'').trim(),
+    packageEndDate: String(f.get('packageEndDate')||'').trim(),
+    industries: String(f.get('industries')||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean),
+    states: String(f.get('states')||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean),
+    stage: String(f.get('stage')||'Any'),
+    plan: String(f.get('plan')||'NOTIFICATION'),
+    notifyEmails: String(f.get('emails')||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean),
+    audienceTags: String(f.get('audience')||'').split(/[,;]/).map(s=>s.trim()).filter(Boolean),
+    dpiitRecognised: f.get('dpiit')==='true',
+    active: f.get('active')!=='false',
+    notes: String(f.get('notes')||''),
+  };
+  const res = await fetch('/api/startups',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const j = await res.json();
+  if (!res.ok) { alert(j.error||'Save failed'); return false; }
+  showAdd = false;
+  await load();
+  location.hash = 'startup/'+encodeURIComponent(j.startup.id);
+  return false;
+}
+
+async function delStartup(id){
+  if (!confirm('Delete startup and remove its matches + notification history?')) return;
+  const res = await fetch('/api/startups/'+encodeURIComponent(id),{method:'DELETE'});
+  if (!res.ok) { alert('Delete failed'); return; }
+  location.hash = '';
+  await load();
+}
+
+async function setFiling(id, status){
+  await fetch('/api/matches/'+encodeURIComponent(id)+'/filing',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status})});
+  await load();
+}
+
+window.addEventListener('hashchange', render);
+load();
+</script>
+</body>
+</html>

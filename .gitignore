@@ -5,3 +5,8 @@ build/
 .env.*
 !.env.example
 *.log
+
+# Grants engine local run output — state now lives in Postgres.
+# startups.json holds client names + notify emails: never commit.
+server/data/grants/*.json
+server/data/grants/*.xlsx

@@ -413,3 +413,110 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 alter table leads add column if not exists company_size "CompanySize";
 alter table marketplace_leads add column if not exists company_size "CompanySize";
+
+-- 2026-08-22: Gov grants engine (in-process background loop on the Sales OS server).
+-- State lives here, not on disk: Render's filesystem is ephemeral, and losing
+-- notify_status would re-email clients about schemes already sent.
+do $$ begin
+  create type "GrantRecurrence" as enum ('RECURRING', 'ONE_TIME');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type "GrantPlan" as enum ('NOTIFICATION', 'FULL_APPLICATION', 'BOTH');
+exception when duplicate_object then null; end $$;
+
+create table if not exists grant_schemes (
+  id text primary key default gen_random_uuid()::text,
+  external_key text not null unique,
+  title text not null,
+  category text not null default '',
+  who_its_for text not null default '',
+  service_track text not null default '',
+  window_type text not null default 'OPEN_CLOSE',
+  recurrence "GrantRecurrence" not null default 'RECURRING',
+  industries text not null default '',
+  instrument text not null default '',
+  stage_fit text not null default '',
+  audience_tags text not null default '',
+  level text not null default '',
+  state text not null default '',
+  ministry text not null default '',
+  summary text not null default '',
+  eligibility text not null default '',
+  benefits text not null default '',
+  status_note text not null default '',
+  start_date text not null default '',
+  end_date text not null default '',
+  max_age_years text not null default '',
+  apply_url text not null default '',
+  source_url text not null,
+  discovered_from text not null default '',
+  last_seen_cycle int not null default 0,
+  is_active boolean not null default true,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists grant_schemes_active_idx on grant_schemes(is_active);
+create index if not exists grant_schemes_source_idx on grant_schemes(discovered_from);
+
+create table if not exists grant_startups (
+  id text primary key,
+  name text not null,
+  industries text[] not null default '{}',
+  states text[] not null default '{}',
+  stage text not null default 'Any',
+  incorporation_date text not null default '',
+  dpiit_recognised boolean not null default false,
+  audience_tags text[] not null default '{}',
+  notify_emails text[] not null default '{}',
+  plan "GrantPlan" not null default 'NOTIFICATION',
+  package_start_date text not null default '',
+  package_end_date text not null default '',
+  active boolean not null default true,
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists grant_matches (
+  id text primary key,
+  startup_id text not null references grant_startups(id) on delete cascade,
+  scheme_key text not null references grant_schemes(external_key) on delete cascade,
+  plan "GrantPlan" not null,
+  score int not null,
+  reasons text not null default '',
+  details text not null default '',
+  apply_url text not null default '',
+  official_url text not null default '',
+  is_standard boolean not null default false,
+  notify_status text not null default 'pending',
+  filing_status text not null default 'none',
+  matched_at timestamptz not null default now(),
+  notified_at timestamptz,
+  unique (startup_id, scheme_key)
+);
+create index if not exists grant_matches_notify_idx on grant_matches(notify_status);
+create index if not exists grant_matches_filing_idx on grant_matches(filing_status);
+
+create table if not exists grant_notify_logs (
+  id text primary key default gen_random_uuid()::text,
+  match_id text not null,
+  startup_id text not null references grant_startups(id) on delete cascade,
+  startup_name text not null,
+  scheme_title text not null,
+  emails text[] not null default '{}',
+  plan "GrantPlan" not null,
+  status text not null,
+  detail text not null default '',
+  at timestamptz not null default now()
+);
+create index if not exists grant_notify_logs_startup_idx on grant_notify_logs(startup_id);
+create index if not exists grant_notify_logs_at_idx on grant_notify_logs(at);
+
+create table if not exists grant_engine_state (
+  id int primary key default 1,
+  cycle int not null default 0,
+  synced_at timestamptz,
+  last_errors text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
