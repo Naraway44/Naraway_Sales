@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from "re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { LogoMark } from "@/components/LogoMark";
 import { LandingPage } from "@/pages/Landing";
 import { LoginPage } from "@/pages/Login";
 import { RequestAccessPage } from "@/pages/RequestAccess";
@@ -27,8 +28,9 @@ function TopNav() {
     <nav className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-6">
-          <span className="text-sm font-semibold tracking-tight">
-            Lead<span className="text-primary">Stack</span>
+          <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <LogoMark size={24} />
+            LeadStack
           </span>
           <div className="flex gap-1">
             <NavLink to="/catalog" className={navLinkClass}>

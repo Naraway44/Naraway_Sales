@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { LogoMark } from "@/components/LogoMark";
 
 const NAV_LINKS = [
   { label: "Product", href: "#how-it-works" },
@@ -25,9 +26,7 @@ export function PublicHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-2xl border border-border/80 bg-white/95 px-4 py-3 shadow-sm shadow-black/[0.04] backdrop-blur sm:px-5">
         <div className="flex min-w-0 items-center gap-6 lg:gap-8">
           <Link to="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-              L
-            </span>
+            <LogoMark size={28} />
             <span className="text-[15px] font-bold tracking-tight text-foreground">LeadStack</span>
           </Link>
 
@@ -107,9 +106,7 @@ export function PublicFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-                L
-              </span>
+              <LogoMark size={28} />
               <span className="text-sm font-bold tracking-tight">LeadStack</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
