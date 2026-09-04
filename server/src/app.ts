@@ -21,6 +21,11 @@ import { grantsRouter } from "@/modules/grants/grants.controller";
 export function createApp() {
   const app = express();
 
+  // Render sits in front of the app as a reverse proxy and sets X-Forwarded-For on every
+  // request. Without this, express-rate-limit throws on that header (and per-IP limiting
+  // falls back to a single shared bucket for the whole service).
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(cors({ origin: env.corsOrigins, credentials: true }));
   app.use(
