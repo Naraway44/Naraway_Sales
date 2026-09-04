@@ -844,13 +844,15 @@ export function LandingPage() {
 
       <section id="faq" className="scroll-mt-24 border-t border-border bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-14">
-            <Reveal className="hidden lg:block">
-              <img
-                src="/images/faq-person.png"
-                alt=""
-                className="mx-auto max-h-[420px] w-auto object-contain"
-              />
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start lg:gap-14">
+            <Reveal className="hidden h-full lg:block">
+              <div className="flex h-full items-end justify-center overflow-hidden rounded-2xl border border-border bg-muted/20 shadow-sm">
+                <img
+                  src="/images/faq-person.png"
+                  alt=""
+                  className="max-h-[480px] w-auto object-contain object-bottom"
+                />
+              </div>
             </Reveal>
 
             <div>
