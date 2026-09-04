@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { checkout, myPurchases, searchLeads, SortBy, SortDir } from "@/api/marketplace";
 import { MarketplaceFilters, SearchResult } from "@/api/types";
+import { usdEstimateSuffix } from "@/lib/currency";
 
 declare global {
   interface Window {
@@ -370,7 +371,10 @@ export function CatalogPage() {
                 {result.deliverableQuantity > 0 ? (
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     You'll get <strong className="text-foreground">{result.deliverableQuantity}</strong> for{" "}
-                    <strong className="text-foreground">₹{result.estimatedTotal}</strong>
+                    <strong className="text-foreground">
+                      ₹{result.estimatedTotal}
+                      {usdEstimateSuffix(result.estimatedTotal)}
+                    </strong>
                   </p>
                 ) : (
                   <p className="mt-0.5 text-sm text-muted-foreground">Nothing available for these filters right now.</p>
