@@ -19,6 +19,29 @@ interface SpeechRecognitionLike {
 
 type RecognitionCtor = new () => SpeechRecognitionLike;
 
+/* Web Speech recognition does not auto-detect language: it transcribes against whatever
+ * `lang` it is given, so the visitor's own browser locale is the best available guess.
+ * Indian locales are passed through as-is (hi-IN, ta-IN, mr-IN and so on), anything else
+ * falls back to Indian English, which is also the right accent model for most visitors
+ * here speaking English. */
+function resolveLang(): string {
+  const preferred = navigator.languages?.[0] ?? navigator.language ?? "en-IN";
+  if (/^en\b/i.test(preferred)) return "en-IN";
+  return preferred;
+}
+
+/** Picks an installed voice matching the spoken language, so a Hindi answer is not read
+ *  aloud by an English voice. Falls back to the browser default when none is installed. */
+function voiceFor(lang: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis?.getVoices() ?? [];
+  const base = lang.split("-")[0].toLowerCase();
+  return (
+    voices.find((v) => v.lang.toLowerCase() === lang.toLowerCase()) ??
+    voices.find((v) => v.lang.toLowerCase().startsWith(base)) ??
+    null
+  );
+}
+
 function getRecognition(): RecognitionCtor | null {
   const w = window as unknown as {
     SpeechRecognition?: RecognitionCtor;
@@ -148,6 +171,12 @@ export function VoiceAssistant() {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    const lang = resolveLang();
+    utterance.lang = lang;
+    // Without an explicitly matched voice, a Hindi or Tamil answer gets read aloud by
+    // whatever the browser default is, usually an English voice mangling every word.
+    const voice = voiceFor(lang);
+    if (voice) utterance.voice = voice;
     utterance.rate = 1.02;
     utterance.pitch = 1;
     utterance.onend = () => {
@@ -178,7 +207,14 @@ export function VoiceAssistant() {
       } catch {
         /* nothing to do the greeting just repeats next visit */
       }
-      speak(GREETING);
+      /* The greeting flows straight into listening, so the visitor's first click or scroll
+       * is the only gesture the browser ever needs from them. From there the mic stays
+       * open turn after turn and they simply talk. */
+      speak(GREETING, () => {
+        conversingRef.current = true;
+        setConversing(true);
+        listenRef.current();
+      });
     };
 
     const events: (keyof WindowEventMap)[] = ["pointerdown", "keydown", "scroll"];
@@ -236,7 +272,7 @@ export function VoiceAssistant() {
     setHeard("");
 
     const recognition = new Recognition();
-    recognition.lang = "en-IN";
+    recognition.lang = resolveLang();
     recognition.interimResults = false;
     recognition.continuous = false;
 

@@ -45,7 +45,13 @@ export const env = {
   assistantApiKey:
     process.env.ASSISTANT_API_KEY ?? process.env.GROQ_API_KEY ?? process.env.GROQ_API ?? "",
   assistantBaseUrl: process.env.ASSISTANT_BASE_URL ?? "https://api.groq.com/openai/v1",
-  assistantModel: process.env.ASSISTANT_MODEL ?? "llama-3.3-70b-versatile",
+  // Providers decommission models without notice, and a dead model name fails silently as
+  // "the assistant just gives canned answers". If that happens, check the live list at
+  // GET /v1/models on the provider and set ASSISTANT_MODEL rather than editing this.
+  // Small on purpose: the answers are two or three spoken sentences from a fixed brief, so
+  // latency matters far more than reasoning depth, and this is a public endpoint whose cost
+  // scales with anonymous traffic.
+  assistantModel: process.env.ASSISTANT_MODEL ?? "openai/gpt-oss-20b",
   razorpayKeyId: required("RAZORPAY_KEY_ID"),
   razorpayKeySecret: required("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: required("RAZORPAY_WEBHOOK_SECRET"),

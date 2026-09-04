@@ -29,6 +29,7 @@ RULES:
 - Never promise approval, delivery dates, or results.
 
 STYLE:
+- Always reply in the same language the visitor used. If they speak Hindi, reply in Hindi. If they mix Hindi and English, reply the same way. Never switch language on them.
 - You are being spoken aloud by a speech synthesiser. Two or three short sentences, maximum.
 - Plain conversational English. No lists, no bullet points, no markdown, no emoji, no special characters.
 - Write abbreviations as they should be pronounced, for example "U P I" rather than "UPI".
@@ -90,6 +91,11 @@ export async function askAssistant(question: string, history: AssistantTurn[] = 
     });
 
     if (!response.ok) {
+      // Logged rather than swallowed: every upstream failure looks identical from the
+      // outside (the visitor just gets a canned answer), which made a decommissioned model
+      // name impossible to tell apart from a bad key or a rate limit.
+      const detail = await response.text().catch(() => "");
+      console.error(`[assistant] ${response.status} from ${env.assistantModel}: ${detail.slice(0, 300)}`);
       return { reply: "", answered: false };
     }
 
@@ -99,9 +105,10 @@ export async function askAssistant(question: string, history: AssistantTurn[] = 
     const reply = data.choices?.[0]?.message?.content?.trim();
 
     return reply ? { reply, answered: true } : { reply: "", answered: false };
-  } catch {
+  } catch (error) {
     // Network failure, timeout, bad JSON the client falls back to its canned answers,
     // so a broken model never leaves a visitor with silence.
+    console.error("[assistant] request failed:", error instanceof Error ? error.message : error);
     return { reply: "", answered: false };
   } finally {
     clearTimeout(timeout);
