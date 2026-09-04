@@ -18,6 +18,7 @@ import { buyerAuthRouter } from "@/modules/buyerAuth/buyerAuth.controller";
 import { buyersRouter } from "@/modules/buyers/buyers.controller";
 import { marketplaceRouter } from "@/modules/marketplace/marketplace.controller";
 import { grantsRouter } from "@/modules/grants/grants.controller";
+import { onHealthCheck } from "@/common/keepalive";
 
 export function createApp() {
   const app = express();
@@ -54,7 +55,12 @@ export function createApp() {
     })
   );
 
-  app.get("/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/health", (_req, res) => {
+    // Piggyback the daily database keepalive ping on real health-check traffic — see
+    // common/keepalive.ts for why.
+    onHealthCheck();
+    res.json({ status: "ok" });
+  });
 
   // TEMPORARY — one-off schema migration endpoint, remove after running once. Render's
   // free tier doesn't allow one-off jobs, and `prisma db push` fails against this
