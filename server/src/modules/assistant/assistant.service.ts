@@ -1,7 +1,7 @@
 import { env } from "@/common/env";
 
 /* Every provider worth using here (Groq, xAI, OpenAI) speaks the same chat-completions
- * shape, so this is a plain fetch against a configurable base URL — no SDK dependency, and
+ * shape, so this is a plain fetch against a configurable base URL no SDK dependency, and
  * switching provider is an environment change rather than a code change. */
 function completionsUrl() {
   return `${env.assistantBaseUrl.replace(/\/+$/, "")}/chat/completions`;
@@ -34,9 +34,14 @@ STYLE:
 - Write abbreviations as they should be pronounced, for example "U P I" rather than "UPI".
 - End by inviting the next question or pointing them to request access, when it fits naturally.`;
 
+export interface AssistantTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AssistantReply {
   reply: string;
-  /** False when the model was unavailable — the client then uses its built-in answers. */
+  /** False when the model was unavailable the client then uses its built-in answers. */
   answered: boolean;
 }
 
@@ -45,19 +50,19 @@ export function isAssistantConfigured() {
 }
 
 /**
- * Answers one question from the landing page's voice assistant.
+ * Answers one turn of the landing page's voice conversation.
  *
- * Deliberately stateless and single-turn: the caller passes the visitor's question and gets
- * one spoken answer back. Conversation history isn't kept server-side because there's no
- * session for an anonymous visitor, and a public endpoint that accumulated per-caller state
- * would be trivially abusable.
+ * History is passed in by the client rather than kept here: an anonymous visitor has no
+ * session to hang it on, and a public endpoint that accumulated per-caller state would be
+ * trivially abusable. The client sends back the last few turns, which is what lets a
+ * follow-up like "and for 500 of them?" resolve against what was just discussed.
  */
-export async function askAssistant(question: string): Promise<AssistantReply> {
+export async function askAssistant(question: string, history: AssistantTurn[] = []): Promise<AssistantReply> {
   if (!isAssistantConfigured()) {
     return { reply: "", answered: false };
   }
 
-  // Anonymous public endpoint — a hung upstream must not hold a connection open indefinitely.
+  // Anonymous public endpoint a hung upstream must not hold a connection open indefinitely.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -73,9 +78,12 @@ export async function askAssistant(question: string): Promise<AssistantReply> {
         model: env.assistantModel,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
+          // Trimmed to the last few turns: enough for a follow-up to resolve, short enough
+          // that a long session can't grow the prompt (and the bill) without bound.
+          ...history.slice(-6).map((turn) => ({ role: turn.role, content: turn.content.slice(0, 500) })),
           { role: "user", content: question },
         ],
-        // Capped low because the reply is spoken aloud — a long answer is worse, not better.
+        // Capped low because the reply is spoken aloud a long answer is worse, not better.
         max_tokens: 160,
         temperature: 0.4,
       }),
@@ -92,7 +100,7 @@ export async function askAssistant(question: string): Promise<AssistantReply> {
 
     return reply ? { reply, answered: true } : { reply: "", answered: false };
   } catch {
-    // Network failure, timeout, bad JSON — the client falls back to its canned answers,
+    // Network failure, timeout, bad JSON the client falls back to its canned answers,
     // so a broken model never leaves a visitor with silence.
     return { reply: "", answered: false };
   } finally {

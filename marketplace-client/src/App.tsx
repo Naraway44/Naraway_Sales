@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from "re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
 import { LogoMark } from "@/components/LogoMark";
 import { LandingPage } from "@/pages/Landing";
 import { LoginPage } from "@/pages/Login";
@@ -71,6 +72,10 @@ function App() {
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            {/* Outside <Routes> so it survives navigation: the component never unmounts,
+                which is what lets a conversation carry on across pages instead of being
+                cut off the moment someone clicks through to pricing or the catalog. */}
+            <VoiceAssistant />
           </div>
         </BrowserRouter>
       </AuthProvider>

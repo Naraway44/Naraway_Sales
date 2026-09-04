@@ -21,7 +21,6 @@ import {
 import { useAuth } from "@/lib/auth";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
 import { LiveStats } from "@/components/LiveStats";
-import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 const STEPS = [
   {
@@ -900,7 +899,6 @@ export function LandingPage() {
       </section>
 
       <PublicFooter />
-      <VoiceAssistant />
     </div>
   );
 }

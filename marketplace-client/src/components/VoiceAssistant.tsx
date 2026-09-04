@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Mic, MicOff, X, Volume2 } from "lucide-react";
 import { askAssistant } from "@/api/marketplace";
 
-/* Speech recognition ships under two names — the unprefixed standard and Chrome's
+/* Speech recognition ships under two names the unprefixed standard and Chrome's
  * webkit-prefixed original, which is still what most installed browsers expose. Typed
  * loosely here rather than pulling a DOM lib type that isn't in this project's TS config. */
 interface SpeechRecognitionLike {
@@ -40,7 +40,7 @@ interface Answer {
 const ANSWERS: Answer[] = [
   {
     keywords: ["price", "pricing", "cost", "costly", "how much", "rate", "charge", "expensive", "cheap"],
-    say: "Pricing depends on how many leads you buy. You pick the quantity, and the total is shown before you pay. Larger orders cost less per lead. There is no monthly subscription — you only pay when you buy.",
+    say: "Pricing depends on how many leads you buy. You pick the quantity, and the total is shown before you pay. Larger orders cost less per lead. There is no monthly subscription, so you only pay when you buy.",
     action: { label: "See pricing", to: "/#pricing" },
   },
   {
@@ -49,7 +49,7 @@ const ANSWERS: Answer[] = [
   },
   {
     keywords: ["where", "come from", "source", "scraped", "quality", "authentic", "real", "genuine"],
-    say: "Leads come from real business activity and are checked before they are listed. You see the company, the industry, the location and why they are worth calling — all before you pay anything.",
+    say: "Leads come from real business activity and are checked before they are listed. You see the company, the industry, the location and why they are worth calling, all before you pay anything.",
   },
   {
     keywords: ["what do i get", "included", "contact", "phone", "email", "details", "before paying", "preview"],
@@ -83,7 +83,7 @@ const ANSWERS: Answer[] = [
 ];
 
 const GREETING =
-  "Hi. Ask me anything about LeadStack — pricing, how leads work, or how to get access.";
+  "Hi. Ask me anything about LeadStack. Pricing, how leads work, or how to get access.";
 
 const FALLBACK =
   "I did not catch that one. Try asking about pricing, exclusivity, what you get with a lead, or how to request access.";
@@ -93,7 +93,7 @@ function findAnswer(said: string): Answer | null {
   let best: { answer: Answer; score: number } | null = null;
 
   for (const answer of ANSWERS) {
-    // Longer keyword matches win — "how much" should beat a stray "how" in another entry.
+    // Longer keyword matches win "how much" should beat a stray "how" in another entry.
     const score = answer.keywords.reduce(
       (total, keyword) => (text.includes(keyword) ? total + keyword.length : total),
       0
@@ -107,7 +107,7 @@ function findAnswer(said: string): Answer | null {
 type Status = "idle" | "listening" | "thinking" | "speaking";
 
 /** Set once the visitor has been greeted, so a returning visitor isn't talked at on every
- *  page view — the greeting is a welcome, not an alarm. */
+ *  page view the greeting is a welcome, not an alarm. */
 const GREETED_KEY = "leadstack_voice_greeted";
 
 export function VoiceAssistant() {
@@ -122,6 +122,15 @@ export function VoiceAssistant() {
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const greetedRef = useRef(false);
+  /* The running conversation, sent back with each question so the model can resolve a
+   * follow-up ("and for 500 of them?") against what was just said. Kept in a ref rather
+   * than state: it's read inside callbacks and never needs to trigger a re-render. */
+  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  /* Whether the visitor is in an active conversation. While true, the mic reopens after
+   * every answer and after any silent timeout, so they can just keep talking. Cleared only
+   * when they stop it or close the panel. */
+  const conversingRef = useRef(false);
+  const [conversing, setConversing] = useState(false);
 
   useEffect(() => {
     setSupported(Boolean(getRecognition()) && "speechSynthesis" in window);
@@ -151,14 +160,14 @@ export function VoiceAssistant() {
 
   /* Browsers refuse to play audio until the visitor has interacted with the page, so the
    * greeting can't fire on load however much we'd like it to. It's armed instead on the
-   * first pointer, key or scroll event — which in practice lands within a second or two —
+   * first pointer, key or scroll event which in practice lands within a second or two  
    * and only for a visitor who hasn't been greeted before. */
   useEffect(() => {
     if (!supported) return;
     try {
       if (sessionStorage.getItem(GREETED_KEY)) return;
     } catch {
-      /* private mode — greet anyway */
+      /* private mode greet anyway */
     }
 
     const greet = () => {
@@ -167,7 +176,7 @@ export function VoiceAssistant() {
       try {
         sessionStorage.setItem(GREETED_KEY, "1");
       } catch {
-        /* nothing to do — the greeting just repeats next visit */
+        /* nothing to do the greeting just repeats next visit */
       }
       speak(GREETING);
     };
@@ -177,7 +186,7 @@ export function VoiceAssistant() {
     return () => events.forEach((event) => window.removeEventListener(event, greet));
   }, [supported, speak]);
 
-  /* Set by respondTo so the answer's own onend can reopen the mic — a real back-and-forth
+  /* Set by respondTo so the answer's own onend can reopen the mic a real back-and-forth
    * rather than making the visitor press the button between every question. Held in a ref
    * because listen() and respondTo() would otherwise depend on each other. */
   const listenRef = useRef<() => void>(() => {});
@@ -188,21 +197,28 @@ export function VoiceAssistant() {
       setStatus("thinking");
 
       /* The model answers anything; the canned set only covers ten topics. So the model is
-       * tried first and the keyword match is the safety net — for a missing API key, an
+       * tried first and the keyword match is the safety net for a missing API key, an
        * upstream outage, or a rate limit. A visitor never gets silence either way. */
       let text = match?.say ?? FALLBACK;
       try {
-        const result = await askAssistant(said);
+        const result = await askAssistant(said, historyRef.current.slice(-6));
         if (result.answered && result.reply) text = result.reply;
       } catch {
         /* fall through to the canned answer already in `text` */
       }
 
+      historyRef.current = [
+        ...historyRef.current,
+        { role: "user", content: said },
+        { role: "assistant", content: text },
+      ].slice(-10);
+
       setReply(text);
       setAction(match?.action);
       speak(text, () => {
-        // Keep the conversation open unless the answer handed them somewhere to go.
-        if (!match?.action) listenRef.current();
+        // Always reopen the mic while the visitor is conversing, including after an answer
+        // that offered a button. The button is an extra route, not the end of the exchange.
+        if (conversingRef.current) listenRef.current();
       });
     },
     [speak]
@@ -232,14 +248,31 @@ export function VoiceAssistant() {
 
     recognition.onerror = (event) => {
       setStatus("idle");
-      setError(
-        event.error === "not-allowed"
-          ? "Microphone access is blocked. Allow it in your browser settings, or type your question instead."
-          : "Didn't catch that. Try again, or type your question instead."
-      );
+      // A denied mic can't be retried, so that one ends the conversation and says why.
+      // "no-speech" is just a pause, and onend restarts the mic for it.
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        conversingRef.current = false;
+        setConversing(false);
+        setError("Microphone access is blocked. Allow it in your browser settings to keep talking.");
+        return;
+      }
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setError("Didn't catch that. Keep talking, or press stop to end.");
+      }
     };
 
-    recognition.onend = () => setStatus((s) => (s === "listening" ? "idle" : s));
+    recognition.onend = () => {
+      setStatus((s) => (s === "listening" ? "idle" : s));
+      /* Recognition stops on its own after a pause, which would silently end the
+       * conversation. While the visitor is still conversing and nothing else is happening,
+       * reopen the mic so a thinking pause doesn't cost them their turn. */
+      if (!conversingRef.current) return;
+      window.setTimeout(() => {
+        if (conversingRef.current && !window.speechSynthesis?.speaking) {
+          listenRef.current();
+        }
+      }, 400);
+    };
 
     recognitionRef.current = recognition;
     setStatus("listening");
@@ -251,9 +284,18 @@ export function VoiceAssistant() {
   }, [listen]);
 
   const stop = useCallback(() => {
+    conversingRef.current = false;
+    setConversing(false);
     recognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
     setStatus("idle");
+  }, []);
+
+  /** Opens the mic and keeps it open until the visitor stops it. */
+  const startConversation = useCallback(() => {
+    conversingRef.current = true;
+    setConversing(true);
+    listenRef.current();
   }, []);
 
   function close() {
@@ -373,20 +415,20 @@ export function VoiceAssistant() {
         <div className="border-t border-border px-4 py-3">
           <button
             type="button"
-            onClick={status === "listening" ? stop : listen}
+            onClick={conversing ? stop : startConversation}
             className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-              status === "listening"
+              conversing
                 ? "bg-muted text-foreground hover:bg-muted/70"
                 : "bg-primary text-primary-foreground hover:opacity-90"
             }`}
           >
-            {status === "listening" ? (
+            {conversing ? (
               <>
-                <MicOff size={16} /> Stop
+                <MicOff size={16} /> End conversation
               </>
             ) : (
               <>
-                <Mic size={16} /> Hold a question
+                <Mic size={16} /> Start talking
               </>
             )}
           </button>
