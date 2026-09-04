@@ -111,7 +111,73 @@ export function DashboardPage() {
               className="w-full max-w-md rounded-md border border-border bg-card px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {/* Mobile: card stack. Desktop: table. Same data, no horizontal-scroll needed on phones. */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {filtered.map((lead) => (
+              <div key={lead.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{lead.companyName}</p>
+                    {lead.industry && <p className="text-xs text-muted-foreground">{lead.industry}</p>}
+                  </div>
+                  {lead.pricePaid != null && lead.pricePaid !== "" && (
+                    <span className="shrink-0 text-sm font-semibold text-foreground">
+                      ₹{Number(lead.pricePaid).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+                <dl className="mt-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Contact</dt>
+                    <dd className="truncate text-right">{lead.contactPerson ?? "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Phone</dt>
+                    <dd className="text-right">
+                      {lead.phone ? (
+                        <a href={`tel:${lead.phone}`} className="text-primary hover:underline">
+                          {lead.phone}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Email</dt>
+                    <dd className="truncate text-right">
+                      {lead.email ? (
+                        <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
+                          {lead.email}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Location</dt>
+                    <dd className="text-right">{[lead.city, lead.state].filter(Boolean).join(", ") || "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Service</dt>
+                    <dd className="text-right">{lead.service ?? "—"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Exclusive until</dt>
+                    <dd className="text-right">{new Date(lead.exclusiveUntil).toLocaleDateString()}</dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                No leads match that search.
+              </div>
+            )}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

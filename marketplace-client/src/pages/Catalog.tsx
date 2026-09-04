@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { checkout, myPurchases, searchLeads, SortBy, SortDir } from "@/api/marketplace";
-import { MarketplaceFilters, SearchResult } from "@/api/types";
+import { CompanySize, MarketplaceFilters, SearchResult } from "@/api/types";
 import { usdEstimateSuffix } from "@/lib/currency";
 
 declare global {
@@ -37,6 +37,15 @@ const FILTER_FIELDS: { key: keyof MarketplaceFilters; label: string }[] = [
   { key: "state", label: "State" },
   { key: "lostReason", label: "Notes" },
   { key: "keyword", label: "Company name" },
+];
+
+const COMPANY_SIZE_OPTIONS: { value: CompanySize; label: string }[] = [
+  { value: "SIZE_1_10", label: "1–10 employees" },
+  { value: "SIZE_11_50", label: "11–50 employees" },
+  { value: "SIZE_51_200", label: "51–200 employees" },
+  { value: "SIZE_201_500", label: "201–500 employees" },
+  { value: "SIZE_501_1000", label: "501–1,000 employees" },
+  { value: "SIZE_1000_PLUS", label: "1,000+ employees" },
 ];
 
 const RANGE_FIELDS: { key: keyof MarketplaceFilters; label: string; type: string }[] = [
@@ -282,6 +291,21 @@ export function CatalogPage() {
               </div>
             </FilterField>
 
+            <FilterField label="Company Size">
+              <select
+                value={filters.companySize ?? ""}
+                onChange={(e) => updateFilter("companySize", e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Any size</option>
+                {COMPANY_SIZE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </FilterField>
+
             <FilterField label="Listed Date">
               <div className="flex gap-2">
                 {DATE_FIELDS.map((field) => (
@@ -395,7 +419,52 @@ export function CatalogPage() {
             </div>
 
             {result.items.length > 0 ? (
-              <div className="overflow-x-auto">
+              <>
+                {/* Mobile: card stack, no horizontal scroll to hunt through columns. */}
+                <div className="flex flex-col gap-3 p-4 sm:hidden">
+                  {result.items.map((lead) => (
+                    <div key={lead.id} className="rounded-lg border border-border bg-white p-4">
+                      <p className="font-medium">{lead.companyName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {[lead.industry, [lead.city, lead.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                      <dl className="mt-3 space-y-1.5 text-sm">
+                        {lead.service && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted-foreground">Service</dt>
+                            <dd className="text-right">{lead.service}</dd>
+                          </div>
+                        )}
+                        {lead.companySize && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted-foreground">Company size</dt>
+                            <dd className="text-right">
+                              {COMPANY_SIZE_OPTIONS.find((opt) => opt.value === lead.companySize)?.label ?? "—"}
+                            </dd>
+                          </div>
+                        )}
+                        {lead.expectedDealValue != null && lead.expectedDealValue !== "" && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted-foreground">Deal value</dt>
+                            <dd className="text-right">₹{Number(lead.expectedDealValue).toLocaleString("en-IN")}</dd>
+                          </div>
+                        )}
+                        {lead.lostReason && (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted-foreground">Notes</dt>
+                            <dd className="text-right">{lead.lostReason}</dd>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-muted-foreground">Listed</dt>
+                          <dd className="text-right">{new Date(lead.listedAt).toLocaleDateString()}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+
+              <div className="hidden overflow-x-auto sm:block">
                 <div className="flex items-center justify-end gap-2 border-b border-border px-5 py-2">
                   <label className="text-xs text-muted-foreground">Sort by</label>
                   <select
@@ -423,6 +492,7 @@ export function CatalogPage() {
                       <th className="px-5 py-2.5 font-medium">Industry</th>
                       <th className="px-5 py-2.5 font-medium">Location</th>
                       <th className="px-5 py-2.5 font-medium">Service</th>
+                      <th className="px-5 py-2.5 font-medium">Company size</th>
                       <th className="px-5 py-2.5 font-medium">Deal value</th>
                       <th className="px-5 py-2.5 font-medium">Notes</th>
                       <th className="px-5 py-2.5 font-medium">Listed</th>
@@ -438,6 +508,11 @@ export function CatalogPage() {
                         </td>
                         <td className="px-5 py-2.5 text-muted-foreground">{lead.service ?? "—"}</td>
                         <td className="px-5 py-2.5 text-muted-foreground">
+                          {lead.companySize
+                            ? COMPANY_SIZE_OPTIONS.find((opt) => opt.value === lead.companySize)?.label ?? "—"
+                            : "—"}
+                        </td>
+                        <td className="px-5 py-2.5 text-muted-foreground">
                           {lead.expectedDealValue != null && lead.expectedDealValue !== ""
                             ? `₹${Number(lead.expectedDealValue).toLocaleString("en-IN")}`
                             : "—"}
@@ -448,6 +523,7 @@ export function CatalogPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
 
                 <div className="flex items-center justify-between border-t border-border px-5 py-3">
                   <p className="text-xs text-muted-foreground">
@@ -472,7 +548,7 @@ export function CatalogPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="p-10 text-center text-sm text-muted-foreground">
                 No leads currently match these filters. Try widening your search.

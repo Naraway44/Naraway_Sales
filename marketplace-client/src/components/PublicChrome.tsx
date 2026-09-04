@@ -61,7 +61,7 @@ export function PublicHeader() {
 
         <button
           type="button"
-          className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium text-foreground sm:hidden"
+          className="rounded-lg border border-border px-2.5 py-1.5 text-sm font-medium text-foreground md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label="Toggle menu"
@@ -71,7 +71,7 @@ export function PublicHeader() {
       </div>
 
       {open && (
-        <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-border bg-white p-4 shadow-lg sm:hidden">
+        <div className="mx-auto mt-2 max-w-6xl rounded-2xl border border-border bg-white p-4 shadow-lg md:hidden">
           <div className="flex flex-col gap-3">
             {NAV_LINKS.map((link) => (
               <button

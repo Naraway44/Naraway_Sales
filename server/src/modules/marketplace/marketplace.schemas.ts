@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CompanySize } from "@prisma/client";
 
 // Note: price is deliberately not a filter dimension here — it's computed live per
 // checkout from the total quantity purchased (see marketplace.pricing), not a fixed
@@ -10,6 +11,7 @@ export const marketplaceFilterSchema = z.object({
   state: z.string().optional(),
   lostReason: z.string().optional(),
   keyword: z.string().optional(),
+  companySize: z.nativeEnum(CompanySize).optional(),
   dealValueMin: z.coerce.number().optional(),
   dealValueMax: z.coerce.number().optional(),
   dateListedFrom: z.coerce.date().optional(),

@@ -6,6 +6,8 @@ export interface Buyer {
   phone?: string | null;
 }
 
+export type CompanySize = "SIZE_1_10" | "SIZE_11_50" | "SIZE_51_200" | "SIZE_201_500" | "SIZE_501_1000" | "SIZE_1000_PLUS";
+
 export interface MarketplaceFilters {
   service?: string;
   industry?: string;
@@ -13,6 +15,7 @@ export interface MarketplaceFilters {
   state?: string;
   lostReason?: string;
   keyword?: string;
+  companySize?: CompanySize;
   dealValueMin?: number;
   dealValueMax?: number;
   dateListedFrom?: string;
@@ -27,6 +30,7 @@ export interface TeaserLead {
   state?: string | null;
   service?: string | null;
   lostReason?: string | null;
+  companySize?: CompanySize | null;
   expectedDealValue?: string | null;
   listedAt: string;
 }

@@ -23,6 +23,7 @@ function filterWhere(filter: MarketplaceFilter): Prisma.MarketplaceLeadWhereInpu
     ...(filter.city ? { city: contains(filter.city) } : {}),
     ...(filter.state ? { state: contains(filter.state) } : {}),
     ...(filter.lostReason ? { lostReason: contains(filter.lostReason) } : {}),
+    ...(filter.companySize ? { companySize: filter.companySize } : {}),
     ...(filter.dealValueMin != null || filter.dealValueMax != null
       ? {
           expectedDealValue: {
@@ -89,6 +90,7 @@ export class MarketplaceService {
           state: true,
           service: true,
           lostReason: true,
+          companySize: true,
           expectedDealValue: true,
           listedAt: true,
         },

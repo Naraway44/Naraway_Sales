@@ -1,58 +1,88 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
+import {
+  Lock,
+  ShieldCheck,
+  Target,
+  Eye,
+  TrendingDown,
+  BookmarkCheck,
+  FolderCheck,
+  CreditCard,
+  UserCheck,
+  Search,
+  Wallet,
+  KeyRound,
+  Building2,
+  Users,
+  Rocket,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
 import { LiveStats } from "@/components/LiveStats";
 
 const STEPS = [
   {
+    icon: Search,
     title: "Find the right companies",
     body: "Pick industry, city, and what they need. See who is available before you spend anything.",
   },
   {
+    icon: Wallet,
     title: "Know the price. Buy with confidence.",
     body: "Choose how many leads you want. See your total upfront. Pay with UPI or card in seconds.",
   },
   {
+    icon: KeyRound,
     title: "Get contacts only you can use",
     body: "Phone and email unlock for you alone for 2 months. No shared lists. No race to call first.",
   },
 ];
 
-const FEATURES = [
+const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   {
+    icon: Lock,
     title: "Yours alone · not shared",
     body: "Every lead goes to one buyer. You are not fighting other agencies for the same number.",
   },
   {
+    icon: ShieldCheck,
     title: "Real businesses, real context",
     body: "Leads come from real sales conversations · not random scraped directories.",
   },
   {
+    icon: Target,
     title: "Match what you sell",
     body: "Filter by industry, location, and service so you only look at companies that fit.",
   },
   {
+    icon: Eye,
     title: "Preview before you pay",
     body: "See company and context first. Contact details open only after you buy.",
   },
   {
+    icon: TrendingDown,
     title: "Bigger orders, better rates",
     body: "Buy more, pay less per lead. Your total is always clear before checkout.",
   },
   {
+    icon: BookmarkCheck,
     title: "Save your favourite searches",
     body: "Keep filters like “Retail, Delhi” ready for next time · one click back to your market.",
   },
   {
+    icon: FolderCheck,
     title: "Keep everything in one place",
     body: "Purchased leads stay in My Leads. Search, call, email, or download anytime.",
   },
   {
+    icon: CreditCard,
     title: "Simple, secure checkout",
     body: "Pay the way you already do in India. Your payment details stay with the payment partner.",
   },
   {
+    icon: UserCheck,
     title: "Serious buyers only",
     body: "Every account is reviewed. That keeps the marketplace focused and high quality.",
   },
@@ -60,14 +90,17 @@ const FEATURES = [
 
 const WHO_FOR = [
   {
+    icon: Building2,
     title: "Agencies & freelancers",
     body: "Fill your pipeline for websites, SEO, CRM, and consulting · without shared leads everyone else already called.",
   },
   {
+    icon: Users,
     title: "Sales teams",
     body: "Add exclusive contacts in the cities and industries you care about when inbound slows down.",
   },
   {
+    icon: Rocket,
     title: "Founders selling outbound",
     body: "Buy only what you need today, download the list, and start conversations the same afternoon.",
   },
@@ -110,9 +143,9 @@ const COMPARE = [
 ];
 
 const AFTER_BUY = [
-  { title: "Unlock contacts", body: "Name, phone, and email show up in My Leads as soon as payment clears." },
-  { title: "Download your list", body: "Export to Excel or your CRM whenever you need · no expiring links." },
-  { title: "We’re here to help", body: "Something look off? Email support@equidamai.com and we’ll look into it." },
+  { icon: KeyRound, title: "Unlock contacts", body: "Name, phone, and email show up in My Leads as soon as payment clears." },
+  { icon: FolderCheck, title: "Download your list", body: "Export to Excel or your CRM whenever you need · no expiring links." },
+  { icon: ShieldCheck, title: "We’re here to help", body: "Something look off? Email support@equidamai.com and we’ll look into it." },
 ];
 
 const FAQS = [
@@ -458,7 +491,120 @@ export function LandingPage() {
 
       <LiveStats />
 
-      <section id="product" className="scroll-mt-24 border-t border-border bg-muted/30">
+      <section className="border-t border-border bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-28">
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <span className="mb-4 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary">
+              01. Marketplace
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Find leads that fit. In seconds.</h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Filter by industry, city, and deal size. See the company and context first · the contact unlocks the
+              moment you buy, exclusively yours.
+            </p>
+          </Reveal>
+
+          <Reveal className="mt-16 grid items-center gap-12 rounded-[2rem] border border-border bg-muted/20 p-8 shadow-sm lg:grid-cols-2 lg:gap-16 lg:p-14">
+            <div>
+              <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                Buy leads in bulk. <span className="font-normal text-muted-foreground">Not one shared list everyone already called.</span>
+              </h3>
+              <Link to="/request-access" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:gap-2.5 transition-all">
+                Request access <span aria-hidden>→</span>
+              </Link>
+              <p className="mt-1 text-xs text-muted-foreground">Filter, choose quantity, checkout — all from your dashboard.</p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-md">
+              <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                <span className="text-xs font-medium text-muted-foreground">Set your filters</span>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">Step 1</span>
+              </div>
+              <div className="flex flex-wrap gap-2 px-5 py-4">
+                {["Manufacturing", "Pune, Maharashtra", "₹5L+ deal size"].map((chip) => (
+                  <span key={chip} className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+              <div className="h-px bg-border" />
+              <div className="flex items-center justify-between px-5 py-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Quantity</p>
+                  <p className="text-sm font-semibold text-foreground">25 leads</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-sm font-semibold text-foreground">Shown before you pay</p>
+                </div>
+              </div>
+              <div className="border-t border-border bg-muted/20 px-5 py-3.5 text-center text-xs font-semibold text-primary">
+                Checkout → matched leads land in your dashboard
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal className="mt-8 grid gap-8 lg:grid-cols-2" stagger>
+            <div className="reveal-child rounded-[2rem] border border-border bg-muted/20 p-8 shadow-sm lg:p-10">
+              <h3 className="text-xl font-bold tracking-tight">
+                Every contact verified before it's sold.
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Leads come from real sales conversations, not scraped directories. Nothing goes on sale without a name,
+                a reason it's a fit, and a working number.
+              </p>
+              <Link to="/request-access" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:gap-2.5 transition-all">
+                See what's included <span aria-hidden>→</span>
+              </Link>
+
+              <div className="mt-6 space-y-2 rounded-xl border border-border bg-white p-4 shadow-sm">
+                {["Company name & industry verified", "Contact reachable at listing time", "Deal context confirmed"].map((line) => (
+                  <div key={line} className="flex items-center gap-2.5 text-sm text-foreground">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">✓</span>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="reveal-child rounded-[2rem] border border-border bg-muted/20 p-8 shadow-sm lg:p-10">
+              <h3 className="text-xl font-bold tracking-tight">Powerful, yet simple.</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Set your filters and quantity, pay once, and matching leads land straight in your dashboard.
+              </p>
+              <Link to="/request-access" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:gap-2.5 transition-all">
+                Request access <span aria-hidden>→</span>
+              </Link>
+
+              <div className="mt-6 space-y-2.5 rounded-xl border border-border bg-white p-4 shadow-sm">
+                {[
+                  { n: "1", label: "Filter & set quantity", done: true },
+                  { n: "2", label: "Checkout", active: true },
+                  { n: "3", label: "Leads assigned to your account", done: false },
+                  { n: "4", label: "View numbers & download", done: false },
+                ].map((step) => (
+                  <div key={step.n} className="flex items-center gap-3 text-sm">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        step.done
+                          ? "bg-primary/10 text-primary"
+                          : step.active
+                            ? "bg-primary text-white"
+                            : "border border-border text-muted-foreground"
+                      }`}
+                    >
+                      {step.done ? "✓" : step.n}
+                    </span>
+                    <span className={step.active ? "font-semibold text-foreground" : "text-muted-foreground"}>{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section id="product" className="scroll-mt-24 border-t border-border bg-hero-grid">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who wins with LeadStack</h2>
@@ -467,6 +613,9 @@ export function LandingPage() {
           <Reveal className="mt-12 grid gap-6 sm:grid-cols-3" stagger>
             {WHO_FOR.map((item) => (
               <div key={item.title} className="reveal-child card-lift rounded-2xl border border-border bg-white p-6 shadow-sm">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <item.icon size={20} strokeWidth={2} />
+                </div>
                 <h3 className="mb-2 font-semibold">{item.title}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{item.body}</p>
               </div>
@@ -518,18 +667,20 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-border bg-white">
+      <section className="border-t border-border bg-foreground">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Why buyers stick with exclusive leads</h2>
-            <p className="mt-3 text-sm text-muted-foreground sm:text-base">More conversations that actually go somewhere.</p>
+            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Why buyers stick with exclusive leads</h2>
+            <p className="mt-3 text-sm text-white/70 sm:text-base">More conversations that actually go somewhere.</p>
           </Reveal>
           <Reveal className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" stagger>
             {FEATURES.map((feature) => (
-              <div key={feature.title} className="reveal-child card-lift rounded-2xl border border-border bg-white p-5 shadow-sm">
-                <div className="mb-3 h-1.5 w-8 rounded-full bg-primary" />
-                <h3 className="mb-1.5 font-semibold">{feature.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+              <div key={feature.title} className="reveal-child card-lift rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <feature.icon size={18} strokeWidth={2} />
+                </div>
+                <h3 className="mb-1.5 font-semibold text-white">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-white/60">{feature.body}</p>
               </div>
             ))}
           </Reveal>
@@ -576,6 +727,9 @@ export function LandingPage() {
           <Reveal className="mt-12 grid gap-6 sm:grid-cols-3" stagger>
             {AFTER_BUY.map((item) => (
               <div key={item.title} className="reveal-child card-lift rounded-2xl border border-border bg-white p-6 shadow-sm">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <item.icon size={20} strokeWidth={2} />
+                </div>
                 <h3 className="mb-2 font-semibold">{item.title}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{item.body}</p>
               </div>
@@ -689,23 +843,35 @@ export function LandingPage() {
       </section>
 
       <section id="faq" className="scroll-mt-24 border-t border-border bg-white">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20">
-          <Reveal className="mb-8 text-center">
-            <p className="mb-2 text-sm font-semibold text-primary">FAQ</p>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Questions buyers ask first</h2>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Still curious?{" "}
-              <a href="mailto:support@equidamai.com" className="font-semibold text-primary hover:underline">
-                Email us
-              </a>
-              .
-            </p>
-          </Reveal>
-          <Reveal className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-            {FAQS.map((faq) => (
-              <FaqItem key={faq.q} q={faq.q} a={faq.a} />
-            ))}
-          </Reveal>
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center lg:gap-14">
+            <Reveal className="hidden lg:block">
+              <img
+                src="/images/faq-person.png"
+                alt=""
+                className="mx-auto max-h-[420px] w-auto object-contain"
+              />
+            </Reveal>
+
+            <div>
+              <Reveal className="mb-8 text-center lg:text-left">
+                <p className="mb-2 text-sm font-semibold text-primary">FAQ</p>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Questions buyers ask first</h2>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Still curious?{" "}
+                  <a href="mailto:support@equidamai.com" className="font-semibold text-primary hover:underline">
+                    Email us
+                  </a>
+                  .
+                </p>
+              </Reveal>
+              <Reveal className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+                {FAQS.map((faq) => (
+                  <FaqItem key={faq.q} q={faq.q} a={faq.a} />
+                ))}
+              </Reveal>
+            </div>
+          </div>
         </div>
       </section>
 
