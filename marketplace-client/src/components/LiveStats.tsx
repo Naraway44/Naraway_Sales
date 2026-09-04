@@ -1,5 +1,61 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMarketplaceStats, type MarketplaceStats } from "@/api/marketplace";
+
+/** Counts up to `value` once the element scrolls into view. The numbers are the proof on
+ *  this section, so they earn the movement — everything else here stays still. Honours
+ *  reduced-motion by rendering the final figure immediately. */
+function useCountUp(value: number, durationMs = 1100) {
+  const [shown, setShown] = useState(0);
+  const ref = useRef<HTMLParagraphElement | null>(null);
+  const done = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || done.current) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(value);
+      done.current = true;
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || done.current) return;
+        done.current = true;
+        observer.disconnect();
+
+        const start = performance.now();
+        const tick = (now: number) => {
+          const progress = Math.min(1, (now - start) / durationMs);
+          // Ease-out cubic: fast at first, settling onto the real figure rather than
+          // stopping dead on it.
+          setShown(Math.round(value * (1 - Math.pow(1 - progress, 3))));
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.4 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value, durationMs]);
+
+  return { ref, shown };
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  const { ref, shown } = useCountUp(value);
+  return (
+    <div className="border-l-2 border-primary pl-4">
+      <p ref={ref} className="text-4xl font-extrabold tracking-tight tabular-nums">
+        {shown.toLocaleString()}
+      </p>
+      <p className="mt-1 text-sm text-white/70">{label}</p>
+    </div>
+  );
+}
 
 // Real numbers straight from the database — no hardcoded figures here. Self-updates on
 // every page load, so it stays accurate without anyone touching this file again.
@@ -29,18 +85,9 @@ export function LiveStats() {
         </p>
 
         <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-3">
-          <div className="border-l-2 border-primary pl-4">
-            <p className="text-4xl font-extrabold tracking-tight">{stats.leadsInCatalog.toLocaleString()}</p>
-            <p className="mt-1 text-sm text-white/70">Leads available right now.</p>
-          </div>
-          <div className="border-l-2 border-primary pl-4">
-            <p className="text-4xl font-extrabold tracking-tight">{stats.leadsScoredLast30Days.toLocaleString()}</p>
-            <p className="mt-1 text-sm text-white/70">Leads scored by our AI in the last 30 days.</p>
-          </div>
-          <div className="border-l-2 border-primary pl-4">
-            <p className="text-4xl font-extrabold tracking-tight">{stats.leadsMatchedToBuyers.toLocaleString()}</p>
-            <p className="mt-1 text-sm text-white/70">Leads matched to a buyer, exclusively.</p>
-          </div>
+          <Stat value={stats.leadsInCatalog} label="Leads available right now." />
+          <Stat value={stats.leadsScoredLast30Days} label="Leads scored by our AI in the last 30 days." />
+          <Stat value={stats.leadsMatchedToBuyers} label="Leads matched to a buyer, exclusively." />
         </div>
 
         {stats.dailyLeadsScored.length > 1 && (

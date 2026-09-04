@@ -34,6 +34,14 @@ export async function getMarketplaceStats() {
   return data;
 }
 
+/** Answers a visitor's spoken question via the model. `answered: false` means the model
+ *  wasn't reachable or isn't configured — the caller then uses its own built-in answers,
+ *  so the assistant never goes silent on a visitor. */
+export async function askAssistant(question: string) {
+  const { data } = await api.post<{ reply: string; answered: boolean }>("/assistant/ask", { question });
+  return data;
+}
+
 export async function myPurchases() {
   const { data } = await api.get<PurchasedLead[]>("/marketplace/my-leads");
   return data;

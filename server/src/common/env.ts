@@ -32,6 +32,20 @@ export const env = {
   // client ID are public identifiers (not secrets), safe in frontend code and here.
   auth0Domain: process.env.AUTH0_DOMAIN ?? "dev-ogn7ve1a25oeyx1.us.auth0.com",
   auth0ClientId: process.env.AUTH0_CLIENT_ID ?? "37OE61aw5fEJdd9DSDECBU9jSCCTqX5u",
+  // Powers the landing page's voice assistant. Deliberately optional, not required(): with
+  // no key set the assistant silently falls back to its built-in canned answers rather than
+  // the whole server refusing to boot over a marketing feature.
+  //
+  // Defaults target Groq (keys begin "gsk_"), whose API is OpenAI-compatible. Any other
+  // OpenAI-compatible provider works by overriding the base URL and model — e.g. xAI's Grok
+  // is https://api.x.ai/v1 with a key beginning "xai-". Note Groq and Grok are different
+  // companies with near-identical names; the key prefix is what tells them apart.
+  // Accepts the provider-neutral name first, then the Groq-specific ones, so an existing
+  // GROQ_API/GROQ_API_KEY in the deploy environment works without being renamed.
+  assistantApiKey:
+    process.env.ASSISTANT_API_KEY ?? process.env.GROQ_API_KEY ?? process.env.GROQ_API ?? "",
+  assistantBaseUrl: process.env.ASSISTANT_BASE_URL ?? "https://api.groq.com/openai/v1",
+  assistantModel: process.env.ASSISTANT_MODEL ?? "llama-3.3-70b-versatile",
   razorpayKeyId: required("RAZORPAY_KEY_ID"),
   razorpayKeySecret: required("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: required("RAZORPAY_WEBHOOK_SECRET"),

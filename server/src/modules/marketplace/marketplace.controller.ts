@@ -4,8 +4,10 @@ import { ValidationError } from "@/common/errors/AppError";
 import { requireBuyerAuth } from "@/common/middleware/buyerAuth";
 import { accessRequestsService } from "@/modules/buyers/accessRequests.service";
 import { createAccessRequestSchema } from "@/modules/buyers/accessRequests.schemas";
+import { requireAuth, requirePasswordChanged, requireRole } from "@/common/middleware/auth";
 import { marketplaceService } from "./marketplace.service";
-import { checkoutSchema, marketplaceSearchQuerySchema } from "./marketplace.schemas";
+import { ingestMarketplaceLeads } from "./marketplace.ingest.service";
+import { checkoutSchema, ingestBatchSchema, marketplaceSearchQuerySchema } from "./marketplace.schemas";
 
 export const marketplaceRouter = Router();
 
@@ -27,6 +29,21 @@ marketplaceRouter.get(
   "/stats",
   asyncHandler(async (_req, res) => {
     res.json(await marketplaceService.stats());
+  })
+);
+
+// Staff-only bulk listing for externally sourced leads. This is the supply path for
+// anything that isn't a Lost lead the sales team worked — a scraper, an enrichment run,
+// a bought list. Founder/Manager only, matching who can release a Lost lead today.
+marketplaceRouter.post(
+  "/ingest",
+  requireAuth,
+  requirePasswordChanged,
+  requireRole("FOUNDER", "MANAGER"),
+  asyncHandler(async (req, res) => {
+    const parsed = ingestBatchSchema.safeParse(req.body);
+    if (!parsed.success) throw new ValidationError(parsed.error.flatten());
+    res.status(201).json(await ingestMarketplaceLeads(req.user!.id, parsed.data));
   })
 );
 

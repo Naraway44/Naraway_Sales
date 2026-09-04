@@ -31,6 +31,8 @@ export interface TeaserLead {
   service?: string | null;
   lostReason?: string | null;
   companySize?: CompanySize | null;
+  intentSignal?: string | null;
+  signalAt?: string | null;
   expectedDealValue?: string | null;
   listedAt: string;
 }

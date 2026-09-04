@@ -428,6 +428,14 @@ export function CatalogPage() {
                       <p className="text-xs text-muted-foreground">
                         {[lead.industry, [lead.city, lead.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "—"}
                       </p>
+                      {lead.intentSignal && (
+                        <p className="mt-2 rounded-md bg-primary/5 px-2.5 py-1.5 text-sm text-foreground">
+                          {lead.intentSignal}
+                          {lead.signalAt && (
+                            <span className="text-muted-foreground"> · {new Date(lead.signalAt).toLocaleDateString()}</span>
+                          )}
+                        </p>
+                      )}
                       <dl className="mt-3 space-y-1.5 text-sm">
                         {lead.service && (
                           <div className="flex justify-between gap-3">
@@ -491,6 +499,7 @@ export function CatalogPage() {
                       <th className="px-5 py-2.5 font-medium">Company</th>
                       <th className="px-5 py-2.5 font-medium">Industry</th>
                       <th className="px-5 py-2.5 font-medium">Location</th>
+                      <th className="px-5 py-2.5 font-medium">Why now</th>
                       <th className="px-5 py-2.5 font-medium">Service</th>
                       <th className="px-5 py-2.5 font-medium">Company size</th>
                       <th className="px-5 py-2.5 font-medium">Deal value</th>
@@ -505,6 +514,20 @@ export function CatalogPage() {
                         <td className="px-5 py-2.5 text-muted-foreground">{lead.industry ?? "—"}</td>
                         <td className="px-5 py-2.5 text-muted-foreground">
                           {[lead.city, lead.state].filter(Boolean).join(", ") || "—"}
+                        </td>
+                        <td className="px-5 py-2.5">
+                          {lead.intentSignal ? (
+                            <>
+                              <span className="text-foreground">{lead.intentSignal}</span>
+                              {lead.signalAt && (
+                                <span className="block text-xs text-muted-foreground">
+                                  {new Date(lead.signalAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-5 py-2.5 text-muted-foreground">{lead.service ?? "—"}</td>
                         <td className="px-5 py-2.5 text-muted-foreground">

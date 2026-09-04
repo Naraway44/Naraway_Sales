@@ -91,6 +91,8 @@ export class MarketplaceService {
           service: true,
           lostReason: true,
           companySize: true,
+          intentSignal: true,
+          signalAt: true,
           expectedDealValue: true,
           listedAt: true,
         },

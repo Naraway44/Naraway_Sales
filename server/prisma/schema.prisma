@@ -503,6 +503,14 @@ model MarketplaceLead {
   service        String?
   lostReason     String?      @map("lost_reason")
 
+  // Why this company is worth calling *now* — the buying signal the scraper detected, in
+  // plain language ("posted a job for a Salesforce admin", "raised Series A"), plus when it
+  // fired. This is the field that separates a qualified lead from a contact row: it's shown
+  // in the teaser before purchase, because it's what a buyer is actually paying the premium
+  // for. Targeting data (industry, city, size) says who they are; this says why now.
+  intentSignal String?   @map("intent_signal")
+  signalAt     DateTime? @map("signal_at")
+
   expectedDealValue Decimal? @map("expected_deal_value") @db.Decimal(14, 2)
 
   resaleStatus MarketplaceLeadStatus @default(LISTED) @map("resale_status")
