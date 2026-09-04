@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { env } from "@/common/env";
+import { requireAuth, requireRole } from "@/common/middleware/auth";
 import { errorHandler } from "@/common/middleware/errorHandler";
 import { createLookupRouter } from "@/common/lookupModule";
 import { authRouter } from "@/modules/auth/auth.controller";
@@ -54,6 +55,35 @@ export function createApp() {
   );
 
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+  // TEMPORARY — one-off schema migration endpoint, remove after running once. Render's
+  // free tier doesn't allow one-off jobs, and `prisma db push` fails against this
+  // Supabase pooler URL (schema engine bug), so this runs the same raw SQL through the
+  // normal query engine the app already connects with successfully. Idempotent
+  // (IF NOT EXISTS everywhere) and gated by a one-time secret, not staff auth, since it
+  // must run before any buyer/staff login even works.
+  app.post("/internal/migrate-buyer-auth-x7f2q9", requireAuth, requireRole("FOUNDER"), async (_req, res) => {
+    try {
+      const { prisma } = await import("@/common/prisma");
+      await prisma.$executeRawUnsafe(`ALTER TABLE "buyers" ALTER COLUMN "created_by_id" DROP NOT NULL`);
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "buyers" ADD COLUMN IF NOT EXISTS "email_verified" BOOLEAN NOT NULL DEFAULT false`
+      );
+      await prisma.$executeRawUnsafe(`ALTER TABLE "buyers" ADD COLUMN IF NOT EXISTS "email_verification_token" TEXT`);
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "buyers" ADD COLUMN IF NOT EXISTS "email_verification_expires" TIMESTAMP(3)`
+      );
+      await prisma.$executeRawUnsafe(
+        `CREATE UNIQUE INDEX IF NOT EXISTS "buyers_email_verification_token_key" ON "buyers"("email_verification_token")`
+      );
+      const backfilled = await prisma.$executeRawUnsafe(
+        `UPDATE "buyers" SET "email_verified" = true WHERE "created_by_id" IS NOT NULL`
+      );
+      res.json({ ok: true, backfilled });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  });
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/users", usersRouter);
