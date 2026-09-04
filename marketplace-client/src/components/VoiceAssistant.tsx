@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mic, MicOff, X, Volume2 } from "lucide-react";
-import { askAssistant } from "@/api/marketplace";
+import { askAssistant, type AssistantTurn } from "@/api/marketplace";
 
 /* Speech recognition ships under two names the unprefixed standard and Chrome's
  * webkit-prefixed original, which is still what most installed browsers expose. Typed
@@ -148,7 +148,7 @@ export function VoiceAssistant() {
   /* The running conversation, sent back with each question so the model can resolve a
    * follow-up ("and for 500 of them?") against what was just said. Kept in a ref rather
    * than state: it's read inside callbacks and never needs to trigger a re-render. */
-  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  const historyRef = useRef<AssistantTurn[]>([]);
   /* Whether the visitor is in an active conversation. While true, the mic reopens after
    * every answer and after any silent timeout, so they can just keep talking. Cleared only
    * when they stop it or close the panel. */
@@ -243,11 +243,11 @@ export function VoiceAssistant() {
         /* fall through to the canned answer already in `text` */
       }
 
-      historyRef.current = [
-        ...historyRef.current,
+      const turns: AssistantTurn[] = [
         { role: "user", content: said },
         { role: "assistant", content: text },
-      ].slice(-10);
+      ];
+      historyRef.current = [...historyRef.current, ...turns].slice(-10);
 
       setReply(text);
       setAction(match?.action);
