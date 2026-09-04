@@ -224,6 +224,32 @@ export class MarketplaceService {
     return { processed: true, confirmedCount: result.count };
   }
 
+  // Public, unauthenticated — powers the live stats strip on the marketing site. Every
+  // number here is a real read against this table, nothing hardcoded or fabricated.
+  async stats() {
+    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [listedNow, matchedLast30d, soldTotal, dailyRows] = await Promise.all([
+      prisma.marketplaceLead.count({ where: { resaleStatus: MarketplaceLeadStatus.LISTED } }),
+      prisma.marketplaceLead.count({ where: { listedAt: { gte: since30d } } }),
+      prisma.marketplaceLead.count({ where: { resaleStatus: MarketplaceLeadStatus.SOLD } }),
+      prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+        SELECT date_trunc('day', "listed_at") AS day, COUNT(*)::bigint AS count
+        FROM "marketplace_leads"
+        WHERE "listed_at" >= ${since30d}
+        GROUP BY day
+        ORDER BY day ASC
+      `,
+    ]);
+
+    return {
+      leadsInCatalog: listedNow,
+      leadsScoredLast30Days: matchedLast30d,
+      leadsMatchedToBuyers: soldTotal,
+      dailyLeadsScored: dailyRows.map((r) => ({ date: r.day.toISOString().slice(0, 10), count: Number(r.count) })),
+    };
+  }
+
   async myPurchases(buyerId: string) {
     return prisma.marketplaceLead.findMany({
       where: { buyerId, resaleStatus: MarketplaceLeadStatus.SOLD },

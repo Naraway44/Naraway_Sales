@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { LiveStats } from "@/components/LiveStats";
 
 const STEPS = [
   {
@@ -454,6 +455,8 @@ export function LandingPage() {
           </Reveal>
         </div>
       </section>
+
+      <LiveStats />
 
       <section id="product" className="scroll-mt-24 border-t border-border bg-muted/30">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">

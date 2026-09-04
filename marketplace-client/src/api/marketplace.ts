@@ -22,6 +22,18 @@ export async function checkout(filters: MarketplaceFilters, quantity: number) {
   return data;
 }
 
+export interface MarketplaceStats {
+  leadsInCatalog: number;
+  leadsScoredLast30Days: number;
+  leadsMatchedToBuyers: number;
+  dailyLeadsScored: { date: string; count: number }[];
+}
+
+export async function getMarketplaceStats() {
+  const { data } = await api.get<MarketplaceStats>("/marketplace/stats");
+  return data;
+}
+
 export async function myPurchases() {
   const { data } = await api.get<PurchasedLead[]>("/marketplace/my-leads");
   return data;

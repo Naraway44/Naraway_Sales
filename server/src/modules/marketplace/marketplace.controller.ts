@@ -21,6 +21,15 @@ marketplaceRouter.post(
   })
 );
 
+// Public, unauthenticated — real numbers, self-updating, for the marketing site's live
+// stats section. No buyer/staff data exposed (just aggregate counts).
+marketplaceRouter.get(
+  "/stats",
+  asyncHandler(async (_req, res) => {
+    res.json(await marketplaceService.stats());
+  })
+);
+
 marketplaceRouter.get(
   "/leads/search",
   requireBuyerAuth,
