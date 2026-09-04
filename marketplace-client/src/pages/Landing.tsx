@@ -102,7 +102,7 @@ const COMPARE = [
     points: ["Same lead sold to many buyers", "Race to dial first", "Monthly fees stack up", "You pay for noise"],
   },
   {
-    label: "With Naraway",
+    label: "With LeadStack",
     bad: false,
     points: ["One buyer per lead", "Yours for 2 months", "Pay only when you buy", "Only pay for what you get"],
   },
@@ -111,7 +111,7 @@ const COMPARE = [
 const AFTER_BUY = [
   { title: "Unlock contacts", body: "Name, phone, and email show up in My Leads as soon as payment clears." },
   { title: "Download your list", body: "Export to Excel or your CRM whenever you need — no expiring links." },
-  { title: "We’re here to help", body: "Something look off? Email support@naraway.com and we’ll look into it." },
+  { title: "We’re here to help", body: "Something look off? Email support@equidamai.com and we’ll look into it." },
 ];
 
 const FAQS = [
@@ -121,7 +121,7 @@ const FAQS = [
   },
   {
     q: "Where do the leads come from?",
-    a: "From real sales work at Naraway. When a lead is no longer a fit for us, we can offer it to you — so you get a fresh chance, exclusively.",
+    a: "From real sales work — AI-matched to your business, then released to you exclusively when a lead is no longer a fit for us.",
   },
   {
     q: "Will other buyers get the same lead?",
@@ -157,7 +157,7 @@ const FAQS = [
   },
   {
     q: "What if a contact seems wrong?",
-    a: "Email support@naraway.com with the details and we’ll check it.",
+    a: "Email support@equidamai.com with the details and we’ll check it.",
   },
   {
     q: "Who is this for?",
@@ -351,7 +351,9 @@ export function LandingPage() {
       <section className="bg-hero-grid relative overflow-hidden pb-8 pt-28 sm:pb-12 sm:pt-32">
         <div className="pointer-events-none absolute left-1/2 top-24 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
-          <p className="anim-fade-up mb-4 text-sm font-medium text-foreground/70 sm:text-base">Exclusive B2B leads</p>
+          <p className="anim-fade-up mb-4 text-sm font-medium text-foreground/70 sm:text-base">
+            The world's leading AI-matched B2B leads platform — used in 120+ countries, including the US and UK
+          </p>
           <h1 className="anim-fade-up anim-delay-1 text-[2.35rem] font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
             Finally, <span className="text-primary">B2B leads</span>
             <br />
@@ -456,7 +458,7 @@ export function LandingPage() {
       <section id="product" className="scroll-mt-24 border-t border-border bg-muted/30">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who wins with Naraway</h2>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Who wins with LeadStack</h2>
             <p className="mt-3 text-sm text-muted-foreground sm:text-base">If you sell B2B and need fresh conversations, this is for you.</p>
           </Reveal>
           <Reveal className="mt-12 grid gap-6 sm:grid-cols-3" stagger>
@@ -645,8 +647,8 @@ export function LandingPage() {
                 body: (
                   <>
                     Questions?{" "}
-                    <a href="mailto:support@naraway.com" className="font-medium text-primary hover:underline">
-                      support@naraway.com
+                    <a href="mailto:support@equidamai.com" className="font-medium text-primary hover:underline">
+                      support@equidamai.com
                     </a>
                   </>
                 ),
@@ -664,13 +666,13 @@ export function LandingPage() {
       <section id="company" className="scroll-mt-24 border-t border-border bg-muted/30">
         <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-20">
           <p className="mb-2 text-sm font-semibold text-primary">About us</p>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">From Naraway’s sales floor to your pipeline</h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">From LeadStack’s sales floor to your pipeline</h2>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
             We sell B2B every day. When a lead is no longer right for us, we can offer it to you — exclusively — so good
             opportunities keep moving and you get contacts worth calling.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href="mailto:support@naraway.com" className="inline-flex text-sm font-semibold text-primary hover:underline">
+            <a href="mailto:support@equidamai.com" className="inline-flex text-sm font-semibold text-primary hover:underline">
               Talk to us →
             </a>
             <Link to="/terms" className="text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -690,7 +692,7 @@ export function LandingPage() {
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Questions buyers ask first</h2>
             <p className="mt-3 text-sm text-muted-foreground">
               Still curious?{" "}
-              <a href="mailto:support@naraway.com" className="font-semibold text-primary hover:underline">
+              <a href="mailto:support@equidamai.com" className="font-semibold text-primary hover:underline">
                 Email us
               </a>
               .

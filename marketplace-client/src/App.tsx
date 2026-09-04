@@ -28,7 +28,7 @@ function TopNav() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-6">
           <span className="text-sm font-semibold tracking-tight">
-            Naraway <span className="text-primary">Lead Marketplace</span>
+            Lead<span className="text-primary">Stack</span>
           </span>
           <div className="flex gap-1">
             <NavLink to="/catalog" className={navLinkClass}>

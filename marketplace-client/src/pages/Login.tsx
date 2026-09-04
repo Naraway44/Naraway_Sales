@@ -21,7 +21,7 @@ export function LoginPage() {
       await login(email, password);
       navigate("/catalog");
     } catch {
-      setError("Invalid email or password. If you were just approved, use the credentials Naraway sent you.");
+      setError("Invalid email or password. If you were just approved, use the credentials LeadStack sent you.");
     } finally {
       setSubmitting(false);
     }
@@ -79,8 +79,8 @@ export function LoginPage() {
           </p>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             Need help?{" "}
-            <a href="mailto:support@naraway.com" className="text-primary hover:underline">
-              support@naraway.com
+            <a href="mailto:support@equidamai.com" className="text-primary hover:underline">
+              support@equidamai.com
             </a>
           </p>
         </div>

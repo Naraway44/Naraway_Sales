@@ -12,14 +12,13 @@ export function PrivacyPage() {
           ← Back to home
         </Link>
         <h1 className="mb-2 text-2xl font-semibold tracking-tight">Privacy</h1>
-        <p className="mb-8 text-xs text-muted-foreground">Naraway Lead Marketplace · last updated 2026</p>
+        <p className="mb-8 text-xs text-muted-foreground">LeadStack · last updated 2026</p>
 
         <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <section>
             <h2 className="mb-2 text-base font-semibold text-foreground">1. Scope</h2>
             <p>
-              This notice covers the public Lead Marketplace website and buyer accounts. It does not describe Naraway's
-              internal Sales OS used by staff.
+              This notice covers the public Lead Marketplace website and buyer accounts.
             </p>
           </section>
 
@@ -58,7 +57,7 @@ export function PrivacyPage() {
             <h2 className="mb-2 text-base font-semibold text-foreground">4. Payments</h2>
             <p>
               Payment processing is handled by Razorpay. Card, UPI, and bank details are entered on Razorpay's systems.
-              Naraway does not store full payment credentials.
+              LeadStack does not store full payment credentials.
             </p>
           </section>
 
@@ -74,7 +73,7 @@ export function PrivacyPage() {
             <h2 className="mb-2 text-base font-semibold text-foreground">6. Sharing</h2>
             <p>
               We may share data with infrastructure and payment providers strictly as needed to run the Marketplace, or
-              when required by law. Buyer accounts are isolated from Naraway staff sales workflows except where staff
+              when required by law. Buyer accounts are isolated from LeadStack staff sales workflows except where staff
               must review access requests or support issues.
             </p>
           </section>
@@ -91,8 +90,8 @@ export function PrivacyPage() {
             <h2 className="mb-2 text-base font-semibold text-foreground">8. Contact</h2>
             <p>
               Privacy questions:{" "}
-              <a href="mailto:support@naraway.com" className="text-primary hover:underline">
-                support@naraway.com
+              <a href="mailto:support@equidamai.com" className="text-primary hover:underline">
+                support@equidamai.com
               </a>
               .
             </p>

@@ -13,7 +13,7 @@ declare global {
 }
 
 const emptyFilters: MarketplaceFilters = {};
-const SAVED_SEARCHES_KEY = "naraway_marketplace_saved_searches";
+const SAVED_SEARCHES_KEY = "leadstack_marketplace_saved_searches";
 
 interface SavedSearch {
   name: string;
@@ -176,7 +176,7 @@ export function CatalogPage() {
         order_id: order.razorpayOrderId,
         amount: order.amount,
         currency: order.currency,
-        name: "Naraway Lead Marketplace",
+        name: "LeadStack",
         description: `${order.leadCount} lead${order.leadCount === 1 ? "" : "s"}`,
         theme: { color: "#0f766e" },
         handler: async () => {
@@ -321,7 +321,7 @@ export function CatalogPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Browse Leads</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Naraway's released lead pool. Contact details are revealed only after purchase.
+            LeadStack's released lead pool. Contact details are revealed only after purchase.
           </p>
         </div>
 

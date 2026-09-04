@@ -26,9 +26,9 @@ export function PublicHeader() {
         <div className="flex min-w-0 items-center gap-6 lg:gap-8">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-              N
+              L
             </span>
-            <span className="text-[15px] font-bold tracking-tight text-foreground">naraway</span>
+            <span className="text-[15px] font-bold tracking-tight text-foreground">LeadStack</span>
           </Link>
 
           <nav className="hidden items-center gap-5 md:flex">
@@ -108,19 +108,19 @@ export function PublicFooter() {
           <div>
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-                N
+                L
               </span>
-              <span className="text-sm font-bold tracking-tight">naraway</span>
+              <span className="text-sm font-bold tracking-tight">LeadStack</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Exclusive B2B leads for serious buyers. Find companies that fit, pay clear prices, own the contact — not a
               shared list.
             </p>
             <a
-              href="mailto:support@naraway.com"
+              href="mailto:support@equidamai.com"
               className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
             >
-              support@naraway.com
+              support@equidamai.com
             </a>
           </div>
 
@@ -160,7 +160,7 @@ export function PublicFooter() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <a href="/#company" className="hover:text-foreground">
-                  About Naraway
+                  About LeadStack
                 </a>
               </li>
               <li>
@@ -169,7 +169,7 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
-                <a href="mailto:support@naraway.com" className="hover:text-foreground">
+                <a href="mailto:support@equidamai.com" className="hover:text-foreground">
                   Contact support
                 </a>
               </li>
@@ -196,13 +196,13 @@ export function PublicFooter() {
               </li>
             </ul>
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              Payments processed by Razorpay. Buyer accounts are separate from Naraway's internal Sales OS.
+              Payments processed by Razorpay. Buyer accounts are separate from LeadStack's internal Sales OS.
             </p>
           </div>
         </div>
 
         <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} Naraway. All rights reserved. Access by invitation only.</p>
+          <p>© {new Date().getFullYear()} LeadStack. All rights reserved. Access by invitation only.</p>
           <p>Exclusive leads · Live pricing · CSV export</p>
         </div>
       </div>

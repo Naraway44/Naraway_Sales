@@ -44,7 +44,7 @@ export function RequestAccessPage() {
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center shadow-sm">
               <h1 className="mb-1 text-lg font-semibold text-primary">Request received</h1>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Thanks — Naraway will review your details and email you with login credentials if approved. This is not
+                Thanks — LeadStack will review your details and email you with login credentials if approved. This is not
                 instant self-serve signup; reviews are manual.
               </p>
               <ul className="mt-4 space-y-1.5 text-left text-xs text-muted-foreground">
