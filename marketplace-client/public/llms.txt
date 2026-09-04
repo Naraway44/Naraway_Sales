@@ -1,0 +1,25 @@
+# LeadStack
+
+> LeadStack is a B2B leads marketplace. Approved buyers browse exclusive leads matched to their business by AI, then buy them at clear, upfront prices. Once bought, a lead is exclusive to that buyer for 2 months and is never resold.
+
+LeadStack sources leads from real sales work: companies that are a strong fit for our own sales team but no longer an active priority are released to marketplace buyers, matched by AI to the buyer's business.
+
+## Key facts
+
+- Buyers see company, industry, location, need, and notes before paying; phone and email unlock after purchase.
+- Pricing is quantity-based with volume discounts, shown as a total before checkout. No subscription, no hidden fees.
+- Payment is by UPI or card through Razorpay; LeadStack never stores card details.
+- Access is by request only; every request is reviewed manually before login credentials are issued.
+- Used by buyers in 120+ countries, including the US and UK.
+
+## Pages
+
+- [Home](https://leadstack.equidamai.com/): product overview, pricing, and FAQ
+- [Request access](https://leadstack.equidamai.com/request-access): apply for a buyer account
+- [Log in](https://leadstack.equidamai.com/login): existing buyer sign-in
+- [Terms of use](https://leadstack.equidamai.com/terms)
+- [Privacy policy](https://leadstack.equidamai.com/privacy)
+
+## Contact
+
+support@equidamai.com

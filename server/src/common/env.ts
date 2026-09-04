@@ -15,7 +15,10 @@ export const env = {
   // Comma-separated — the internal Sales OS and the buyer-facing marketplace are two
   // different origins hitting this same backend, so a single CORS_ORIGIN string isn't
   // enough once the marketplace frontend exists.
-  corsOrigins: (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+  corsOrigins: (
+    process.env.CORS_ORIGIN ??
+    "http://localhost:5173,https://leadstack.equidamai.com,https://leadstack-ivrv.onrender.com,https://naraway-sales-1.onrender.com"
+  )
     .split(",")
     .map((origin) => origin.trim()),
   // Deliberately a separate secret from jwtSecret: a buyer token must never verify
