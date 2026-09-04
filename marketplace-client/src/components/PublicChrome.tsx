@@ -113,8 +113,8 @@ export function PublicFooter() {
               <span className="text-sm font-bold tracking-tight">LeadStack</span>
             </div>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Exclusive B2B leads for serious buyers. Find companies that fit, pay clear prices, own the contact — not a
-              shared list.
+              Exclusive B2B leads for serious buyers. Find companies that fit, pay clear prices, and own the contact
+              instead of a shared list.
             </p>
             <a
               href="mailto:support@equidamai.com"

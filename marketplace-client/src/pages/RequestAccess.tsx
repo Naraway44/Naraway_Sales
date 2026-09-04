@@ -27,7 +27,7 @@ export function RequestAccessPage() {
       });
       setSubmitted(true);
     } catch {
-      setError("Something went wrong submitting your request — please try again.");
+      setError("Something went wrong submitting your request. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -44,12 +44,12 @@ export function RequestAccessPage() {
             <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center shadow-sm">
               <h1 className="mb-1 text-lg font-semibold text-primary">Request received</h1>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Thanks — LeadStack will review your details and email you with login credentials if approved. This is not
+                Thanks. LeadStack will review your details and email you with login credentials if approved. This is not
                 instant self-serve signup; reviews are manual.
               </p>
               <ul className="mt-4 space-y-1.5 text-left text-xs text-muted-foreground">
-                <li>· Check spam if you don't see a reply within a few business days</li>
-                <li>· Once approved, use Log in to browse and purchase leads</li>
+                <li>Check spam if you don't see a reply within a few business days</li>
+                <li>Once approved, use Log in to browse and purchase leads</li>
               </ul>
               <Link to="/login" className="mt-5 inline-block text-sm font-medium text-primary hover:underline">
                 Already have an account? Log in
@@ -59,7 +59,7 @@ export function RequestAccessPage() {
             <form onSubmit={onSubmit} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h1 className="mb-1 text-lg font-semibold">Start finding exclusive leads</h1>
               <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-                Tell us a bit about you and what you sell. We review every request — free to apply, no card needed.
+                Tell us a bit about you and what you sell. We review every request, free to apply, no card needed.
               </p>
 
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Full name *</label>

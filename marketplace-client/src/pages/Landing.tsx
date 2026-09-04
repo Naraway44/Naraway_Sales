@@ -20,12 +20,12 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: "Yours alone — not shared",
+    title: "Yours alone · not shared",
     body: "Every lead goes to one buyer. You are not fighting other agencies for the same number.",
   },
   {
     title: "Real businesses, real context",
-    body: "Leads come from real sales conversations — not random scraped directories.",
+    body: "Leads come from real sales conversations · not random scraped directories.",
   },
   {
     title: "Match what you sell",
@@ -41,7 +41,7 @@ const FEATURES = [
   },
   {
     title: "Save your favourite searches",
-    body: "Keep filters like “Retail, Delhi” ready for next time — one click back to your market.",
+    body: "Keep filters like “Retail, Delhi” ready for next time · one click back to your market.",
   },
   {
     title: "Keep everything in one place",
@@ -60,7 +60,7 @@ const FEATURES = [
 const WHO_FOR = [
   {
     title: "Agencies & freelancers",
-    body: "Fill your pipeline for websites, SEO, CRM, and consulting — without shared leads everyone else already called.",
+    body: "Fill your pipeline for websites, SEO, CRM, and consulting · without shared leads everyone else already called.",
   },
   {
     title: "Sales teams",
@@ -110,18 +110,18 @@ const COMPARE = [
 
 const AFTER_BUY = [
   { title: "Unlock contacts", body: "Name, phone, and email show up in My Leads as soon as payment clears." },
-  { title: "Download your list", body: "Export to Excel or your CRM whenever you need — no expiring links." },
+  { title: "Download your list", body: "Export to Excel or your CRM whenever you need · no expiring links." },
   { title: "We’re here to help", body: "Something look off? Email support@equidamai.com and we’ll look into it." },
 ];
 
 const FAQS = [
   {
     q: "What is this marketplace?",
-    a: "A place for approved buyers to find exclusive B2B leads — companies you can reach out to, without sharing them with competitors.",
+    a: "A place for approved buyers to find exclusive B2B leads · companies you can reach out to, without sharing them with competitors.",
   },
   {
     q: "Where do the leads come from?",
-    a: "From real sales work — AI-matched to your business, then released to you exclusively when a lead is no longer a fit for us.",
+    a: "From real sales work · AI-matched to your business, then released to you exclusively when a lead is no longer a fit for us.",
   },
   {
     q: "Will other buyers get the same lead?",
@@ -137,7 +137,7 @@ const FAQS = [
   },
   {
     q: "What if fewer leads are left when I check out?",
-    a: "You only pay for what we can deliver — never more.",
+    a: "You only pay for what we can deliver · never more.",
   },
   {
     q: "How do I get access?",
@@ -149,7 +149,7 @@ const FAQS = [
   },
   {
     q: "Can I download what I bought?",
-    a: "Yes — export from My Leads anytime.",
+    a: "Yes · export from My Leads anytime.",
   },
   {
     q: "How do I pay?",
@@ -161,7 +161,7 @@ const FAQS = [
   },
   {
     q: "Who is this for?",
-    a: "Agencies, sales teams, and founders who want exclusive B2B contacts — not free spam lists or shared lead dumps.",
+    a: "Agencies, sales teams, and founders who want exclusive B2B contacts · not free spam lists or shared lead dumps.",
   },
 ];
 
@@ -352,7 +352,7 @@ export function LandingPage() {
         <div className="pointer-events-none absolute left-1/2 top-24 h-64 w-64 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
           <p className="anim-fade-up mb-4 text-sm font-medium text-foreground/70 sm:text-base">
-            The world's leading AI-matched B2B leads platform — used in 120+ countries, including the US and UK
+            The world's leading AI-matched B2B leads platform · used in 120+ countries, including the US and UK
           </p>
           <h1 className="anim-fade-up anim-delay-1 text-[2.35rem] font-bold leading-[1.12] tracking-tight text-foreground sm:text-5xl lg:text-[3.5rem]">
             Finally, <span className="text-primary">B2B leads</span>
@@ -360,7 +360,7 @@ export function LandingPage() {
             you can trust.
           </h1>
           <p className="anim-fade-up anim-delay-2 mx-auto mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground sm:text-lg">
-            Stop buying shared lists. Get companies that match what you sell — with contacts{" "}
+            Stop buying shared lists. Get companies that match what you sell · with contacts{" "}
             <strong className="font-semibold text-foreground">only you</strong> can use.
           </p>
           <div className="anim-fade-up anim-delay-3 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -393,11 +393,11 @@ export function LandingPage() {
       <section className="border-y border-border bg-white">
         <Reveal className="mx-auto max-w-6xl px-4 py-12 sm:px-6" stagger>
           <p className="reveal-child mb-8 text-center text-sm text-muted-foreground">
-            Built for people who need real pipeline — not another shared list
+            Built for people who need real pipeline · not another shared list
           </p>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              { k: "1 buyer", v: "per lead — always" },
+              { k: "1 buyer", v: "per lead · always" },
               { k: "2 months", v: "exclusively yours" },
               { k: "No monthly fee", v: "pay only when you buy" },
               { k: "Download anytime", v: "your list, your tools" },
@@ -413,7 +413,7 @@ export function LandingPage() {
 
       <section className="border-b border-border bg-white">
         <Reveal className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-20">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Leads that help you close — not compete</h2>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Leads that help you close · not compete</h2>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
             Most “lead” platforms sell the same contact to several buyers. You dial, someone else already did. Here,
             every lead is exclusive: you buy it, you own the outreach window. Simple.
@@ -428,7 +428,7 @@ export function LandingPage() {
             <p className="mb-2 text-sm font-semibold text-primary">How it works</p>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Three steps to exclusive contacts</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              From search to conversation — without wasting budget on shared lists.
+              From search to conversation · without wasting budget on shared lists.
             </p>
           </Reveal>
 
@@ -500,7 +500,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Find companies that fit your offer</h2>
-            <p className="mt-3 text-sm text-muted-foreground sm:text-base">Zero in on your market — then buy only the matches.</p>
+            <p className="mt-3 text-sm text-muted-foreground sm:text-base">Zero in on your market · then buy only the matches.</p>
           </Reveal>
           <Reveal className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2" stagger>
             {FILTERS.map((f) => (
@@ -568,7 +568,7 @@ export function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">After you buy</h2>
-            <p className="mt-3 text-sm text-muted-foreground sm:text-base">Your leads stay with you — ready to call, email, or export.</p>
+            <p className="mt-3 text-sm text-muted-foreground sm:text-base">Your leads stay with you · ready to call, email, or export.</p>
           </Reveal>
           <Reveal className="mt-12 grid gap-6 sm:grid-cols-3" stagger>
             {AFTER_BUY.map((item) => (
@@ -594,11 +594,11 @@ export function LandingPage() {
           <Reveal className="mt-8 rounded-2xl border border-border bg-white p-6 text-left shadow-sm sm:p-8">
             <ul className="space-y-3 text-sm text-muted-foreground">
               {[
-                ["See the total first", " — no guesswork at checkout"],
-                ["Volume rewards", " — larger orders cost less per lead"],
-                ["Pay only for what you get", " — never charged for empty inventory"],
-                ["No monthly fee", " — buy when you need pipeline"],
-                ["UPI & cards", " — checkout the way India already pays"],
+                ["See the total first", " · no guesswork at checkout"],
+                ["Volume rewards", " · larger orders cost less per lead"],
+                ["Pay only for what you get", " · never charged for empty inventory"],
+                ["No monthly fee", " · buy when you need pipeline"],
+                ["UPI & cards", " · checkout the way India already pays"],
               ].map(([strong, rest]) => (
                 <li key={strong} className="flex gap-3">
                   <span className="mt-0.5 font-bold text-primary">✓</span>
@@ -668,7 +668,7 @@ export function LandingPage() {
           <p className="mb-2 text-sm font-semibold text-primary">About us</p>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">From LeadStack’s sales floor to your pipeline</h2>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-            We sell B2B every day. When a lead is no longer right for us, we can offer it to you — exclusively — so good
+            We sell B2B every day. When a lead is no longer right for us, we can offer it to you · exclusively · so good
             opportunities keep moving and you get contacts worth calling.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">

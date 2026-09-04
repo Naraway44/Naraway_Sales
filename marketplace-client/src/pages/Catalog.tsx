@@ -84,7 +84,7 @@ export function CatalogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only bootstrap
   }, []);
 
-  // After Razorpay success, payment confirmation is webhook-driven — poll My Leads until new rows appear.
+  // After Razorpay success, payment confirmation is webhook-driven · poll My Leads until new rows appear.
   useEffect(() => {
     if (!purchaseComplete) return;
     let cancelled = false;
@@ -119,7 +119,7 @@ export function CatalogPage() {
       setPage(targetPage);
       setHasSearched(true);
     } catch {
-      setSearchError("Couldn't load leads — please try again.");
+      setSearchError("Couldn't load leads. Please try again.");
       setResult(null);
       setHasSearched(true);
     } finally {
@@ -145,7 +145,7 @@ export function CatalogPage() {
 
   function loadSavedSearch(saved: SavedSearch) {
     setFilters(saved.filters);
-    // Re-run after state settles — pass filters via a dedicated search call.
+    // Re-run after state settles · pass filters via a dedicated search call.
     setLoading(true);
     setSearchError("");
     searchLeads(saved.filters, quantity, 1, sortBy, sortDir)
@@ -155,7 +155,7 @@ export function CatalogPage() {
         setHasSearched(true);
       })
       .catch(() => {
-        setSearchError("Couldn't load leads — please try again.");
+        setSearchError("Couldn't load leads. Please try again.");
         setResult(null);
         setHasSearched(true);
       })
@@ -195,12 +195,12 @@ export function CatalogPage() {
         modal: { ondismiss: () => setCheckingOut(false) },
       });
       razorpay.on?.("payment.failed", () => {
-        setCheckoutError("Payment failed — please try again.");
+        setCheckoutError("Payment failed. Please try again.");
         setCheckingOut(false);
       });
       razorpay.open();
     } catch {
-      setCheckoutError("Couldn't start checkout — please try again.");
+      setCheckoutError("Couldn't start checkout. Please try again.");
       setCheckingOut(false);
     }
   }
@@ -209,7 +209,7 @@ export function CatalogPage() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:flex-row sm:px-6 sm:py-8">
-      {/* Left sidebar — filters, Hunter Discover-style */}
+      {/* Left sidebar · filters, Hunter Discover-style */}
       <aside className="w-full shrink-0 sm:w-64">
         <form onSubmit={(e) => runSearch(e, 1)} className="rounded-xl border border-border bg-card p-4 shadow-sm sm:sticky sm:top-6">
           <div className="mb-1 flex items-center justify-between">
@@ -316,7 +316,7 @@ export function CatalogPage() {
         </form>
       </aside>
 
-      {/* Main content — live count, buy action, results table */}
+      {/* Main content · live count, buy action, results table */}
       <main className="min-w-0 flex-1">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Browse Leads</h1>
@@ -447,7 +447,7 @@ export function CatalogPage() {
 
                 <div className="flex items-center justify-between border-t border-border px-5 py-3">
                   <p className="text-xs text-muted-foreground">
-                    Page {result.page} of {result.totalPages} — {result.availableCount} total matching leads
+                    Page {result.page} of {result.totalPages}, {result.availableCount} total matching leads
                   </p>
                   <div className="flex gap-2">
                     <button

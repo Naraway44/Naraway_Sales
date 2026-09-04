@@ -12,7 +12,7 @@ export function DashboardPage() {
   useEffect(() => {
     myPurchases()
       .then(setLeads)
-      .catch(() => setError("Couldn't load your leads — please refresh and try again."))
+      .catch(() => setError("Couldn't load your leads. Please refresh and try again."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -30,7 +30,7 @@ export function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Leads</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Leads you've purchased — exclusive to you for 2 months from purchase.{" "}
+            Leads you've purchased, exclusive to you for 2 months from purchase.{" "}
             <a href="mailto:support@equidamai.com" className="text-primary hover:underline">
               Report an issue with a lead
             </a>
@@ -58,7 +58,7 @@ export function DashboardPage() {
         </div>
       ) : leads.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-          You haven't purchased any leads yet — head to{" "}
+          You haven't purchased any leads yet. Head to{" "}
           <Link to="/catalog" className="font-medium text-primary hover:underline">
             Browse
           </Link>{" "}
