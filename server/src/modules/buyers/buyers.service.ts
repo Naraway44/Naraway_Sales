@@ -25,6 +25,9 @@ export class BuyersService {
         phone: input.phone,
         passwordHash,
         createdById: staff.id,
+        // Staff already vetted this buyer by hand — skip the self-signup email-verification
+        // gate that exists to filter out unvetted signups.
+        emailVerified: true,
       },
     });
 

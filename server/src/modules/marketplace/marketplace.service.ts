@@ -111,6 +111,13 @@ export class MarketplaceService {
   }
 
   async createCheckout(buyerId: string, input: CheckoutInput) {
+    // Self-signed-up buyers must verify their email before they can pay. Staff-created
+    // buyers are already vetted (buyers.service.ts sets emailVerified: true for them).
+    const buyer = await prisma.buyer.findUniqueOrThrow({ where: { id: buyerId } });
+    if (!buyer.emailVerified) {
+      throw new ValidationError("Please verify your email before checking out. Check your inbox for the verification link.");
+    }
+
     await this.releaseAbandonedCheckouts();
 
     const where: Prisma.MarketplaceLeadWhereInput = {

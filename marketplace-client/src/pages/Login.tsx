@@ -1,15 +1,44 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { completeAuth0Redirect, redirectToAuth0Login } from "@/lib/auth0";
+import { GoogleIcon } from "@/components/GoogleIcon";
 
 export function LoginPage() {
-  const { buyer, login } = useAuth();
+  const { buyer, login, loginWithAuth0 } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Handles the redirect back from Auth0's Universal Login (?code=...) — separate from
+  // the email/password form below, which is untouched.
+  useEffect(() => {
+    if (!window.location.search.includes("code=")) return;
+    setGoogleLoading(true);
+    completeAuth0Redirect()
+      .then((idToken) => {
+        if (!idToken) return;
+        return loginWithAuth0(idToken).then(() => navigate("/catalog"));
+      })
+      .catch((err: Error) => setError(err.message || "Google sign-in failed. Please try again."))
+      .finally(() => setGoogleLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function onGoogleClick() {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      await redirectToAuth0Login();
+    } catch {
+      setError("Couldn't start Google sign-in. Please try again.");
+      setGoogleLoading(false);
+    }
+  }
 
   if (buyer) return <Navigate to="/catalog" replace />;
 
@@ -39,6 +68,16 @@ export function LoginPage() {
             <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
               Sign in with the buyer account we sent after approving your access request.
             </p>
+
+            <button
+              type="button"
+              onClick={onGoogleClick}
+              disabled={googleLoading}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/50 disabled:opacity-60"
+            >
+              <GoogleIcon />
+              {googleLoading ? "Connecting..." : "Continue with Google"}
+            </button>
 
             <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
             <input

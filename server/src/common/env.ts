@@ -25,6 +25,13 @@ export const env = {
   // successfully against staff auth, or vice versa, even if one secret were ever leaked.
   buyerJwtSecret: required("BUYER_JWT_SECRET"),
   buyerJwtExpiresIn: process.env.BUYER_JWT_EXPIRES_IN ?? "8h",
+  // Used to build the link inside the self-signup verification email.
+  marketplaceUrl: process.env.MARKETPLACE_URL ?? "https://leadstack.equidamai.com",
+  // Auth0 tenant used for "Log in with Google" — an alternate path onto the same buyer
+  // session, alongside (not replacing) the existing email/password login. Domain and
+  // client ID are public identifiers (not secrets), safe in frontend code and here.
+  auth0Domain: process.env.AUTH0_DOMAIN ?? "dev-ogn7ve1a25oeyx1.us.auth0.com",
+  auth0ClientId: process.env.AUTH0_CLIENT_ID ?? "37OE61aw5fEJdd9DSDECBU9jSCCTqX5u",
   razorpayKeyId: required("RAZORPAY_KEY_ID"),
   razorpayKeySecret: required("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: required("RAZORPAY_WEBHOOK_SECRET"),

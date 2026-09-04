@@ -1,9 +1,14 @@
 import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { submitAccessRequest } from "@/api/accessRequests";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { useAuth } from "@/lib/auth";
+import { redirectToAuth0Login } from "@/lib/auth0";
+import { GoogleIcon } from "@/components/GoogleIcon";
 
 export function RequestAccessPage() {
+  const navigate = useNavigate();
+  const { buyer } = useAuth();
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
@@ -12,6 +17,18 @@ export function RequestAccessPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  if (buyer) navigate("/catalog");
+
+  async function onGoogleClick() {
+    setGoogleLoading(true);
+    try {
+      await redirectToAuth0Login();
+    } catch {
+      setGoogleLoading(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -61,6 +78,16 @@ export function RequestAccessPage() {
               <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
                 Tell us a bit about you and what you sell. We review every request, free to apply, no card needed.
               </p>
+
+              <button
+                type="button"
+                onClick={onGoogleClick}
+                disabled={googleLoading}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/50 disabled:opacity-60"
+              >
+                <GoogleIcon />
+                {googleLoading ? "Connecting..." : "Sign up with Google"}
+              </button>
 
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Full name *</label>
               <input

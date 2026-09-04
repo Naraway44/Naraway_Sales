@@ -433,9 +433,19 @@ model Buyer {
   passwordHash        String   @map("password_hash")
   currentSessionToken String?  @map("current_session_token")
   isActive            Boolean  @default(true) @map("is_active")
-  createdById         String   @map("created_by_id")
-  createdBy           User     @relation("BuyerCreatedBy", fields: [createdById], references: [id])
+  // Null when the buyer self-signed-up rather than being created by staff (the manual
+  // approval flow in buyersRouter is kept as a fallback — see BuyerAccessRequest below —
+  // so this stays nullable rather than becoming required).
+  createdById         String?  @map("created_by_id")
+  createdBy           User?    @relation("BuyerCreatedBy", fields: [createdById], references: [id])
   createdAt           DateTime @default(now()) @map("created_at")
+
+  // Self-signed-up buyers must verify their email before checkout works (blocks throwaway
+  // addresses/bots with minimal friction). Staff-created buyers are already vetted, so
+  // buyers.service.ts creates them with emailVerified: true and no token.
+  emailVerified             Boolean   @default(false) @map("email_verified")
+  emailVerificationToken    String?   @unique @map("email_verification_token")
+  emailVerificationExpires  DateTime? @map("email_verification_expires")
 
   purchasedLeads MarketplaceLead[]
 
