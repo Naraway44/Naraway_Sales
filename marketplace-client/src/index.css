@@ -246,57 +246,106 @@
   }
 }
 
-/* Voice assistant orb — the ring pulse is the only thing that says "this is live and
-   listening" at a glance, so speaking and listening get visibly different rhythms:
-   speaking breathes outward in time with speech, listening ticks faster and tighter. */
-.voice-orb {
+/* Voice assistant sphere. An iridescent mesh-gradient orb rather than a flat button: the
+   colour drift is what reads as "alive and listening" before any label is read. Built from
+   four blurred radial gradients on an oversized pseudo-element, rotated slowly so the
+   colours fold through each other instead of spinning visibly. */
+.voice-sphere {
   position: relative;
+  border-radius: 9999px;
+  overflow: hidden;
+  isolation: isolate;
+  background: hsl(230 25% 96%);
 }
 
-.voice-orb::before,
-.voice-orb::after {
+.voice-sphere::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  background:
+    radial-gradient(circle at 32% 30%, hsl(24 100% 62%) 0%, transparent 55%),
+    radial-gradient(circle at 70% 26%, hsl(280 85% 68%) 0%, transparent 55%),
+    radial-gradient(circle at 68% 72%, hsl(196 95% 62%) 0%, transparent 55%),
+    radial-gradient(circle at 26% 74%, hsl(330 92% 66%) 0%, transparent 58%);
+  filter: blur(8px);
+  animation: sphere-drift 14s linear infinite;
+}
+
+/* Specular highlight, kept above the colour so the orb reads as a lit sphere rather than
+   a flat disc of gradient. */
+.voice-sphere::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 9999px;
-  border: 2px solid hsl(var(--primary));
-  opacity: 0;
-  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 34% 26%, hsl(0 0% 100% / 0.5) 0%, transparent 46%),
+    radial-gradient(circle at 50% 118%, hsl(240 40% 30% / 0.28) 0%, transparent 55%);
 }
 
-.voice-orb--speaking::before,
-.voice-orb--listening::before {
-  animation: orb-ring 1.8s ease-out infinite;
+/* The two live states differ by tempo, not colour: answering breathes, listening hurries. */
+.voice-sphere--speaking::before {
+  animation-duration: 5s;
 }
 
-.voice-orb--speaking::after,
-.voice-orb--listening::after {
-  animation: orb-ring 1.8s ease-out 0.9s infinite;
+.voice-sphere--listening::before {
+  animation-duration: 2.4s;
 }
 
-.voice-orb--listening::before,
-.voice-orb--listening::after {
-  animation-duration: 1.1s;
-}
-
-.voice-orb--listening::after {
-  animation-delay: 0.55s;
-}
-
-@keyframes orb-ring {
+@keyframes sphere-drift {
   0% {
-    transform: scale(1);
-    opacity: 0.55;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.12);
   }
   100% {
-    transform: scale(1.7);
-    opacity: 0;
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* Halo on the closed launcher only, so the orb is findable against a busy page. */
+.voice-sphere--launcher {
+  box-shadow:
+    0 8px 30px hsl(280 60% 50% / 0.28),
+    0 2px 10px hsl(24 90% 55% / 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-sphere::before {
+    animation: none !important;
+  }
+}
+
+/* Outer glow, only while the assistant is actually doing something. Paired with the drift
+   tempo above so answering pulses slowly and listening pulses quickly, which is what makes
+   the state readable from across the page without a label. */
+.voice-sphere--speaking,
+.voice-sphere--listening {
+  animation: sphere-glow 5s ease-in-out infinite;
+}
+
+.voice-sphere--listening {
+  animation-duration: 2.4s;
+}
+
+@keyframes sphere-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 hsl(280 80% 60% / 0.32),
+      0 6px 24px hsl(280 60% 50% / 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 12px hsl(280 80% 60% / 0),
+      0 6px 34px hsl(24 90% 58% / 0.36);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .voice-orb::before,
-  .voice-orb::after {
+  .voice-sphere--speaking,
+  .voice-sphere--listening {
     animation: none !important;
   }
 }

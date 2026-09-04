@@ -328,10 +328,8 @@ export function VoiceAssistant() {
           setAction(undefined);
         }}
         aria-label="Open the LeadStack voice assistant"
-        className="voice-orb fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        <Mic size={22} strokeWidth={2.2} />
-      </button>
+        className="voice-sphere voice-sphere--launcher voice-sphere--speaking fixed bottom-5 right-5 z-50 h-16 w-16 transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+      />
     );
   }
 
@@ -373,16 +371,15 @@ export function VoiceAssistant() {
       <div className="px-4 py-4" aria-live="polite">
         <div className="mb-4 flex justify-center">
           <div
-            className={`voice-orb flex h-20 w-20 items-center justify-center rounded-full text-white ${
+            aria-hidden
+            className={`voice-sphere h-24 w-24 ${
               status === "speaking"
-                ? "voice-orb--speaking bg-primary"
+                ? "voice-sphere--speaking"
                 : status === "listening" || status === "thinking"
-                  ? "voice-orb--listening bg-primary"
-                  : "bg-primary/80"
+                  ? "voice-sphere--listening"
+                  : ""
             }`}
-          >
-            {status === "speaking" ? <Volume2 size={26} /> : <Mic size={26} />}
-          </div>
+          />
         </div>
 
         {heard && <p className="mb-2 text-xs text-muted-foreground">You asked: “{heard}”</p>}
