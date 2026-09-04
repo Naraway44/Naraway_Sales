@@ -32,9 +32,6 @@ export const env = {
   // client ID are public identifiers (not secrets), safe in frontend code and here.
   auth0Domain: process.env.AUTH0_DOMAIN ?? "dev-ogn7ve1a25oeyx1.us.auth0.com",
   auth0ClientId: process.env.AUTH0_CLIENT_ID ?? "37OE61aw5fEJdd9DSDECBU9jSCCTqX5u",
-  // Used by the keepalive ping to hit our own /health endpoint (Render's free tier only
-  // counts inbound traffic as activity). Defaults to the known production backend URL.
-  selfUrl: process.env.SELF_URL ?? "https://naraway-sales.onrender.com",
   razorpayKeyId: required("RAZORPAY_KEY_ID"),
   razorpayKeySecret: required("RAZORPAY_KEY_SECRET"),
   razorpayWebhookSecret: required("RAZORPAY_WEBHOOK_SECRET"),
