@@ -18,9 +18,9 @@ export function TermsPage() {
           <section>
             <h2 className="mb-2 text-base font-semibold text-foreground">1. The service</h2>
             <p>
-              LeadStack (“the Marketplace”) is a buyer-facing storefront where approved external buyers
-              may browse teaser information about curated B2B leads, purchase exclusive access to contact details, and
-              export purchased leads. It is separate from LeadStack's internal Sales OS.
+              LeadStack (“the Marketplace”) is a buyer-facing storefront where approved buyers may browse teaser
+              information about curated B2B leads, purchase exclusive access to contact details, and export purchased
+              leads.
             </p>
           </section>
 

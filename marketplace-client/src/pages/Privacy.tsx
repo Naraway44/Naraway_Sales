@@ -73,8 +73,8 @@ export function PrivacyPage() {
             <h2 className="mb-2 text-base font-semibold text-foreground">6. Sharing</h2>
             <p>
               We may share data with infrastructure and payment providers strictly as needed to run the Marketplace, or
-              when required by law. Buyer accounts are isolated from LeadStack staff sales workflows except where staff
-              must review access requests or support issues.
+              when required by law. Your buyer account is only reviewed by our team when you request access or contact
+              support.
             </p>
           </section>
 

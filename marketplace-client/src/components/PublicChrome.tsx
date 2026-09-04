@@ -194,9 +194,14 @@ export function PublicFooter() {
                   Privacy
                 </Link>
               </li>
+              <li>
+                <a href="/sitemap.xml" className="hover:text-foreground">
+                  Sitemap
+                </a>
+              </li>
             </ul>
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-              Payments processed by Razorpay. Buyer accounts are separate from LeadStack's internal Sales OS.
+              Payments processed by Razorpay. Buyer accounts and access are managed separately from the leads you buy.
             </p>
           </div>
         </div>
