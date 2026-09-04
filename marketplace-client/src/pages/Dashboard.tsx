@@ -37,14 +37,50 @@ export function DashboardPage() {
           </p>
         </div>
         {leads.length > 0 && (
-          <button
-            onClick={() => exportPurchasesCsv()}
-            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-muted/50"
-          >
-            Download CSV
-          </button>
+          <div className="flex gap-2">
+            <Link
+              to="/catalog"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+            >
+              Browse more leads
+            </Link>
+            <button
+              onClick={() => exportPurchasesCsv()}
+              className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-muted/50"
+            >
+              Download CSV
+            </button>
+          </div>
         )}
       </div>
+
+      {leads.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Leads owned</div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">{leads.length}</div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total invested</div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">
+              ₹
+              {leads
+                .reduce((sum, l) => sum + (l.pricePaid != null && l.pricePaid !== "" ? Number(l.pricePaid) : 0), 0)
+                .toLocaleString("en-IN")}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Next exclusivity ends
+            </div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">
+              {new Date(
+                Math.min(...leads.map((l) => new Date(l.exclusiveUntil).getTime()))
+              ).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
