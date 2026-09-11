@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
 
-const APPLY_URL = "https://docs.google.com/forms/d/1qovft1ZUyFoUBkhR10Ikb-oqfU9hOvKjT9d3JDiX4a8/edit";
+const APPLY_URL = "https://docs.google.com/forms/d/1qovft1ZUyFoUBkhR10Ikb-oqfU9hOvKjT9d3JDiX4a8/viewform";
 
 const WHAT_YOU_DO = [
   "Call and message warm leads from your network into paying LeadStack buyers — fully remote, over phone and chat.",
