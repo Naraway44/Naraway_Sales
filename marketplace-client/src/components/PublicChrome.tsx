@@ -175,6 +175,11 @@ export function PublicFooter() {
                   FAQ
                 </a>
               </li>
+              <li>
+                <Link to="/careers" className="hover:text-foreground">
+                  Careers
+                </Link>
+              </li>
             </ul>
           </div>
 
