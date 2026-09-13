@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { fetchMe, login as loginRequest, loginWithAuth0 as loginWithAuth0Request } from "@/api/buyerAuth";
+import {
+  fetchMe,
+  login as loginRequest,
+  loginWithAuth0 as loginWithAuth0Request,
+  signup as signupRequest,
+  SignupInput,
+} from "@/api/buyerAuth";
 import { Buyer } from "@/api/types";
 
 interface AuthContextValue {
@@ -7,6 +13,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithAuth0: (idToken: string) => Promise<void>;
+  signup: (input: SignupInput) => Promise<{ verificationEmailSent: boolean }>;
   logout: () => void;
 }
 
@@ -40,13 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBuyer(result.buyer);
   }
 
+  async function signup(input: SignupInput) {
+    const result = await signupRequest(input);
+    localStorage.setItem("buyer_token", result.token);
+    setBuyer(result.buyer);
+    return { verificationEmailSent: result.verificationEmailSent };
+  }
+
   function logout() {
     localStorage.removeItem("buyer_token");
     setBuyer(null);
   }
 
   return (
-    <AuthContext.Provider value={{ buyer, loading, login, loginWithAuth0, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ buyer, loading, login, loginWithAuth0, signup, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

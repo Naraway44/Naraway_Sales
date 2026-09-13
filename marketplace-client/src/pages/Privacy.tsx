@@ -1,7 +1,14 @@
 import { Link } from "react-router-dom";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { useDocumentHead } from "@/lib/useDocumentHead";
 
 export function PrivacyPage() {
+  useDocumentHead({
+    title: "Privacy Policy — LeadStack",
+    description: "How LeadStack collects, uses, and protects buyer and lead data on the marketplace.",
+    path: "/privacy",
+  });
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="relative pb-4 pt-4">

@@ -162,7 +162,7 @@ export function PublicFooter() {
               </li>
               <li>
                 <Link to="/request-access" className="hover:text-foreground">
-                  Request access
+                  Sign up
                 </Link>
               </li>
               <li>

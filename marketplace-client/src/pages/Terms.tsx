@@ -1,7 +1,14 @@
 import { Link } from "react-router-dom";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { useDocumentHead } from "@/lib/useDocumentHead";
 
 export function TermsPage() {
+  useDocumentHead({
+    title: "Terms of Use — LeadStack",
+    description: "LeadStack's terms of use for buyers purchasing exclusive B2B leads on the marketplace.",
+    path: "/terms",
+  });
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="relative pb-4 pt-4">

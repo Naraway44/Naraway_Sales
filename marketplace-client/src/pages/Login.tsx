@@ -50,7 +50,7 @@ export function LoginPage() {
       await login(email, password);
       navigate("/catalog");
     } catch {
-      setError("Invalid email or password. If you were just approved, use the credentials LeadStack sent you.");
+      setError("Invalid email or password.");
     } finally {
       setSubmitting(false);
     }
@@ -65,9 +65,7 @@ export function LoginPage() {
         <div className="w-full max-w-sm">
           <form onSubmit={onSubmit} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h1 className="mb-1 text-lg font-semibold">Welcome back</h1>
-            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-              Sign in with the buyer account we sent after approving your access request.
-            </p>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">Sign in to browse and buy leads.</p>
 
             <button
               type="button"
@@ -113,7 +111,7 @@ export function LoginPage() {
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Don't have an account yet?{" "}
             <Link to="/request-access" className="font-medium text-primary hover:underline">
-              Request access
+              Sign up
             </Link>
           </p>
           <p className="mt-2 text-center text-xs text-muted-foreground">

@@ -1,7 +1,29 @@
 import { useState } from "react";
 import { PublicFooter, PublicHeader } from "@/components/PublicChrome";
+import { useDocumentHead } from "@/lib/useDocumentHead";
 
 const APPLY_URL = "https://docs.google.com/forms/d/1qovft1ZUyFoUBkhR10Ikb-oqfU9hOvKjT9d3JDiX4a8/viewform";
+
+const JOB_POSTING_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "JobPosting",
+  title: "Inside Sales Executive",
+  description:
+    "Remote, full-time Inside Sales role at LeadStack (by Equidam AI): call and message warm leads into paying buyers on the marketplace, commission-based pay tied to what you close.",
+  datePosted: "2026-09-13",
+  validThrough: "2027-03-13",
+  employmentType: "FULL_TIME",
+  hiringOrganization: {
+    "@type": "Organization",
+    name: "Equidam AI",
+    sameAs: "https://leadstack.equidamai.com/",
+  },
+  jobLocationType: "TELECOMMUTE",
+  applicantLocationRequirements: {
+    "@type": "Country",
+    name: "IN",
+  },
+};
 
 const WHAT_YOU_DO = [
   "Call and message warm leads from your network into paying LeadStack buyers — fully remote, over phone and chat.",
@@ -18,8 +40,16 @@ const WHO_FITS = [
 export function CareersPage() {
   const [selected, setSelected] = useState(false);
 
+  useDocumentHead({
+    title: "Careers at LeadStack — Inside Sales Executive (Remote, Commission)",
+    description:
+      "LeadStack, by Equidam AI, is hiring an Inside Sales Executive. Full-time, fully remote, paid on what you close. Apply in two minutes.",
+    path: "/careers",
+  });
+
   return (
     <div className="min-h-screen bg-white">
+      <script type="application/ld+json">{JSON.stringify(JOB_POSTING_SCHEMA)}</script>
       <PublicHeader />
 
       <section className="bg-hero-grid relative overflow-hidden pb-8 pt-28 sm:pb-12 sm:pt-32">
