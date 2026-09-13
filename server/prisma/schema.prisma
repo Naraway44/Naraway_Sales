@@ -108,6 +108,12 @@ enum BuyerAccessRequestStatus {
   DECLINED
 }
 
+enum BdApplicantStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
 // A rep asking for more leads once they've worked through their current book — distinct
 // from the automatic capacity backfill (which fires silently on closing a lead). This one
 // needs a Founder/Manager to look and say yes, since it's the rep asserting readiness
@@ -234,6 +240,7 @@ model User {
   createdBuyers            Buyer[]              @relation("BuyerCreatedBy")
   approvedMarketplaceLeads MarketplaceLead[]    @relation("MarketplaceLeadApprovedBy")
   resolvedAccessRequests   BuyerAccessRequest[] @relation("BuyerAccessRequestResolvedBy")
+  resolvedBdApplicants     BdApplicant[]        @relation("BdApplicantResolvedBy")
 
   // Composite covers plain "by team" lookups too (leftmost-prefix), and is the exact
   // shape of the round-robin assignment query (team + role + active), so one index
@@ -479,6 +486,30 @@ model BuyerAccessRequest {
 
   @@index([status, createdAt])
   @@map("buyer_access_requests")
+}
+
+// Applicants for the commission-only Business Development gig (see the public
+// /grow-with-us page) — framed and sold as flexible gig work, not a salaried role, so the
+// fields here are deliberately about availability and existing network rather than a resume.
+model BdApplicant {
+  id      String            @id @default(cuid())
+  name    String
+  email   String
+  phone   String
+  city    String?
+  // Free text: what sales/business network or experience they're bringing, in their words.
+  pitch         String?
+  hoursPerWeek  String?
+  status        BdApplicantStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  resolvedById String? @map("resolved_by_id")
+  resolvedBy   User?   @relation("BdApplicantResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@map("bd_applicants")
 }
 
 // A copy of a Lost lead's resale-safe fields, created the moment Founder/Manager releases

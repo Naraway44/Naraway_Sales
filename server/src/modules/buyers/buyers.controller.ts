@@ -5,6 +5,7 @@ import { ValidationError } from "@/common/errors/AppError";
 import { buyersService } from "./buyers.service";
 import { createBuyerSchema } from "./buyers.schemas";
 import { accessRequestsService } from "./accessRequests.service";
+import { bdApplicantsService } from "@/modules/bdApplicants/bdApplicants.service";
 
 export const buyersRouter = Router();
 
@@ -41,5 +42,25 @@ buyersRouter.post(
       throw new ValidationError("status must be APPROVED or DECLINED");
     }
     res.json(await accessRequestsService.resolve(req.user!, req.params.id, status));
+  })
+);
+
+// Applicants for the commission-only Business Development gig (public form is on the
+// marketplace router, unauthenticated — see marketplace.controller.ts).
+buyersRouter.get(
+  "/bd-applicants",
+  asyncHandler(async (req, res) => {
+    res.json(await bdApplicantsService.list());
+  })
+);
+
+buyersRouter.post(
+  "/bd-applicants/:id/resolve",
+  asyncHandler(async (req, res) => {
+    const { status } = req.body as { status: "APPROVED" | "DECLINED" };
+    if (status !== "APPROVED" && status !== "DECLINED") {
+      throw new ValidationError("status must be APPROVED or DECLINED");
+    }
+    res.json(await bdApplicantsService.resolve(req.user!, req.params.id, status));
   })
 );
